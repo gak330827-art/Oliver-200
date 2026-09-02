@@ -2,7 +2,7 @@
 # Сгенерировано: tools/sign.sh
 # Проверка:      tools/sign.sh --check
 #
-8e2312f657823550889cae5d12f8763a3c43aafe5e9a432053b34c6ce88fdb34  .github/workflows/android.yml
+fe9fa939fcb1fbf02e31dd8c7c4f5012f53e2a872ac45b386e1de8995d3fb1c0  .github/workflows/android.yml
 ca13be7440fe6ad9fce5dda17fd138d282d3b56f591cc8a581909e2072b2200e  .gitignore
 9ee2809cd5494f74d6489c34591af0145d19555ad00e7163426f3d5591267fe4  README.md
 795ac5eab776ac7d6eb473ab1f9c3bc8e4022173ba6201ff0591e178d3767569  SECURITY.md
