@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · нижняя навигация. Подпись: OLIVER-200 -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_versions" android:icon="@drawable/ic_versions" android:title="@string/tab_versions" />
+    <item android:id="@+id/nav_skin" android:icon="@drawable/ic_skin" android:title="@string/tab_skin" />
+    <item android:id="@+id/nav_shaders" android:icon="@drawable/ic_shaders" android:title="@string/tab_shaders" />
+    <item android:id="@+id/nav_account" android:icon="@drawable/ic_account" android:title="@string/tab_account" />
+</menu>
