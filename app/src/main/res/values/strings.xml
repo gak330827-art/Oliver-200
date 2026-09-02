@@ -97,4 +97,25 @@
     <string name="common_error_network">Нет сети или сервер недоступен</string>
     <string name="common_error_blocked">Адрес заблокирован политикой безопасности: %1$s</string>
     <string name="storage_free">Свободно: %1$s</string>
+
+    <!-- Офлайн-профиль -->
+    <string name="offline_title">Офлайн-профиль</string>
+    <string name="offline_nick_hint">Ник для офлайн-игры (3–16 символов)</string>
+    <string name="offline_save">Сохранить ник</string>
+    <string name="offline_saved">Офлайн-профиль сохранён: %1$s</string>
+    <string name="offline_uuid">UUID: %1$s</string>
+    <string name="offline_uuid_explain">UUID вычисляется из ника ровно так же, как это делает сервер Minecraft. Один и тот же ник — всегда один и тот же игрок и тот же инвентарь.</string>
+    <string name="offline_invalid">Ник: латиница, цифры и «_», длина 3–16</string>
+    <string name="offline_not_set">Ник не задан</string>
+    <string name="offline_gate_blocked">Офлайн-запуск закрыт: войдите один раз через Microsoft, чтобы лаунчер увидел вашу лицензию. Скины и паки работают и без этого.</string>
+    <string name="offline_gate_ok">Лицензия подтверждена аккаунтом %1$s — офлайн-запуск доступен</string>
+    <string name="offline_where">Годится для одиночной игры, локальной сети и серверов с online-mode=false.</string>
+
+    <!-- Выбор активного профиля -->
+    <string name="profile_active">Играть как</string>
+    <string name="profile_microsoft">Microsoft</string>
+    <string name="profile_offline">Офлайн</string>
+    <string name="profile_switched_offline">Активен офлайн-профиль</string>
+    <string name="profile_switched_online">Активен аккаунт Microsoft</string>
+    <string name="launch_offline_no_nick">Сначала задайте офлайн-ник</string>
 </resources>

@@ -51,6 +51,14 @@ interface Vault {
         const val KEY_PROFILE_NAME = "profile_name"
         const val KEY_XUID = "profile_xuid"
 
+        /**
+         * Отметка, что на этом устройстве хотя бы раз успешно вошли
+         * в аккаунт Microsoft с подтверждённой лицензией. Открывает
+         * офлайн-запуск. Лежит в том же зашифрованном хранилище, что и
+         * токены: в открытом файле настроек её переставил бы кто угодно.
+         */
+        const val KEY_LICENCE_VERIFIED = "licence_verified"
+
         /** Контекст для AAD: привязывает шифротекст к конкретной ячейке. */
         fun contextFor(key: String): String = "oliver200:vault:v1:$key"
     }

@@ -55,10 +55,47 @@ class AccountStore(private val vault: Vault) {
 
     fun refreshToken(): String? = vault.getString(Vault.KEY_MS_REFRESH_TOKEN)
 
-    /** Выход: стираем всё. Полумеры вроде «оставим профиль» здесь неуместны. */
+    /**
+     * Выход: стираем токены и профиль.
+     *
+     * Отметку о подтверждённой лицензии НЕ трогаем намеренно. Она означает
+     * «на этом устройстве видели оплаченный аккаунт», а не «сейчас выполнен
+     * вход». Стереть её при выходе значило бы отобрать офлайн-игру у того,
+     * кто просто вышел, чтобы сменить аккаунт. Полный сброс — forgetEverything().
+     */
     fun clear() {
+        listOf(
+            Vault.KEY_MS_REFRESH_TOKEN,
+            Vault.KEY_MC_ACCESS_TOKEN,
+            Vault.KEY_MC_TOKEN_EXPIRY,
+            Vault.KEY_PROFILE_UUID,
+            Vault.KEY_PROFILE_NAME,
+            Vault.KEY_XUID,
+        ).forEach(vault::remove)
+    }
+
+    /** Полный сброс, включая отметку о лицензии. */
+    fun forgetEverything() {
         vault.clear()
     }
+
+    /* ───────────── Подтверждение лицензии для офлайн-запуска ───────────── */
+
+    /** Вызывается ТОЛЬКО после успешной проверки entitlements у Mojang. */
+    fun markLicenceVerified(accountName: String) {
+        val stamp = System.currentTimeMillis() / 1000
+        vault.putString(Vault.KEY_LICENCE_VERIFIED, "$stamp:$accountName")
+    }
+
+    /** @return (момент проверки в секундах эпохи, имя аккаунта) либо null. */
+    fun licenceVerification(): Pair<Long, String>? {
+        val raw = vault.getString(Vault.KEY_LICENCE_VERIFIED) ?: return null
+        val at = raw.substringBefore(':').toLongOrNull() ?: return null
+        val name = raw.substringAfter(':', "").takeIf { it.isNotEmpty() } ?: return null
+        return at to name
+    }
+
+    val licenceVerified: Boolean get() = licenceVerification() != null
 
     val storageDescription: String get() = vault.variant
     val storageEncrypted: Boolean get() = vault.encrypted

@@ -15,6 +15,8 @@
 package com.oliver200.launcher.data
 
 import android.content.Context
+import com.oliver200.launcher.core.auth.OfflinePlayer
+import com.oliver200.launcher.core.auth.OfflineProfile
 import com.oliver200.launcher.core.io.SafePath
 import com.oliver200.launcher.core.mojang.ReleaseChannel
 import com.oliver200.launcher.core.skin.MinecraftName
@@ -33,7 +35,7 @@ class Settings(context: Context) {
             }.apply()
         }
 
-    /** Ник локального профиля: показывает скин и подставляется в запуск без входа. */
+    /** Ник офлайн-профиля: показывает скин и подставляется в запуск без входа. */
     var offlineNick: String?
         get() = MinecraftName.normalize(prefs.getString(KEY_NICK, null))
         set(value) {
@@ -41,6 +43,24 @@ class Settings(context: Context) {
             prefs.edit().apply {
                 if (safe == null) remove(KEY_NICK) else putString(KEY_NICK, safe)
             }.apply()
+        }
+
+    /**
+     * Готовый офлайн-профиль с посчитанным UUID.
+     * Профиль собирается заново при каждом чтении: хранить UUID отдельно
+     * незачем и опаснее — рассинхрон ника и UUID означал бы, что на сервере
+     * игрок внезапно стал другим человеком и потерял свой мир.
+     */
+    val offlineProfile: OfflinePlayer?
+        get() = OfflineProfile.of(offlineNick)
+
+    /** Каким профилем запускать игру. */
+    var profileMode: ProfileMode
+        get() = ProfileMode.entries
+            .firstOrNull { it.name == prefs.getString(KEY_PROFILE_MODE, null) }
+            ?: ProfileMode.MICROSOFT
+        set(value) {
+            prefs.edit().putString(KEY_PROFILE_MODE, value.name).apply()
         }
 
     var channels: Set<ReleaseChannel>
@@ -61,5 +81,9 @@ class Settings(context: Context) {
         const val KEY_VERSION = "selected_version"
         const val KEY_NICK = "offline_nick"
         const val KEY_CHANNELS = "channels"
+        const val KEY_PROFILE_MODE = "profile_mode"
     }
 }
+
+/** Чем представляется игрок при запуске. */
+enum class ProfileMode { MICROSOFT, OFFLINE }

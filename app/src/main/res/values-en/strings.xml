@@ -90,4 +90,25 @@
     <string name="common_error_network">No network or the server is unreachable</string>
     <string name="common_error_blocked">Address blocked by security policy: %1$s</string>
     <string name="storage_free">Free: %1$s</string>
+
+    <!-- Offline profile -->
+    <string name="offline_title">Offline profile</string>
+    <string name="offline_nick_hint">Nickname for offline play (3–16 chars)</string>
+    <string name="offline_save">Save nickname</string>
+    <string name="offline_saved">Offline profile saved: %1$s</string>
+    <string name="offline_uuid">UUID: %1$s</string>
+    <string name="offline_uuid_explain">The UUID is derived from the nickname exactly the way a Minecraft server does it. The same nickname always means the same player and the same inventory.</string>
+    <string name="offline_invalid">Nickname: A–Z, 0–9 and “_”, length 3–16</string>
+    <string name="offline_not_set">No nickname set</string>
+    <string name="offline_gate_blocked">Offline launch is locked: sign in with Microsoft once so the launcher can see your licence. Skins and packs work without it.</string>
+    <string name="offline_gate_ok">Licence confirmed by account %1$s — offline launch available</string>
+    <string name="offline_where">Good for singleplayer, LAN, and servers running online-mode=false.</string>
+
+    <!-- Active profile -->
+    <string name="profile_active">Play as</string>
+    <string name="profile_microsoft">Microsoft</string>
+    <string name="profile_offline">Offline</string>
+    <string name="profile_switched_offline">Offline profile active</string>
+    <string name="profile_switched_online">Microsoft account active</string>
+    <string name="launch_offline_no_nick">Set an offline nickname first</string>
 </resources>
