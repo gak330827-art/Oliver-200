@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · Android 12+. Подпись: OLIVER-200 · см. SIGNATURES.txt -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="vault/" />
+        <exclude domain="sharedpref" path="oliver_vault.xml" />
+    </cloud-backup>
+    <!-- Перенос на новое устройство: ключ Keystore не переносится,
+         поэтому переносить шифротекст бессмысленно. -->
+    <device-transfer>
+        <exclude domain="file" path="vault/" />
+        <exclude domain="sharedpref" path="oliver_vault.xml" />
+    </device-transfer>
+</data-extraction-rules>

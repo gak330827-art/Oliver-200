@@ -1,0 +1,16 @@
+# Oliver-200
+.gradle/
+build/
+*/build/
+local.properties
+*.jks
+*.keystore
+*.apk
+*.aab
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/

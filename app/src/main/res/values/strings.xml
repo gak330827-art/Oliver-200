@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · строки (русский, язык по умолчанию). Подпись: OLIVER-200 -->
+<resources>
+    <string name="app_name">Oliver-200</string>
+
+    <string name="tab_versions">Версии</string>
+    <string name="tab_skin">Скин</string>
+    <string name="tab_shaders">Шейдеры</string>
+    <string name="tab_account">Аккаунт</string>
+
+    <!-- Версии -->
+    <string name="versions_title">Выбор версии</string>
+    <string name="versions_search">Поиск версии</string>
+    <string name="versions_filter_release">Релизы</string>
+    <string name="versions_filter_snapshot">Снапшоты</string>
+    <string name="versions_filter_old">Старые</string>
+    <string name="versions_refresh">Обновить список</string>
+    <string name="versions_empty">Список пуст. Потяните вниз, чтобы загрузить.</string>
+    <string name="versions_loading">Загружаем список версий…</string>
+    <string name="versions_install">Установить</string>
+    <string name="versions_installed">Установлена</string>
+    <string name="versions_selected">Выбрана версия %1$s</string>
+    <string name="versions_error">Не удалось получить список версий: %1$s</string>
+    <string name="versions_rejected">Отброшено записей: %1$d</string>
+    <string name="version_subtitle">%1$s · %2$s</string>
+
+    <!-- Установка -->
+    <string name="install_preparing">Готовим план загрузки…</string>
+    <string name="install_progress">Загрузка %1$d из %2$d · %3$s</string>
+    <string name="install_verify_failed">Файл не прошёл проверку целостности: %1$s</string>
+    <string name="install_done">Версия %1$s установлена</string>
+    <string name="install_failed">Установка не удалась: %1$s</string>
+    <string name="install_cancel">Отмена</string>
+
+    <!-- Скин -->
+    <string name="skin_title">Скин по нику</string>
+    <string name="skin_nick_hint">Ник Minecraft (3–16 символов)</string>
+    <string name="skin_find">Найти</string>
+    <string name="skin_invalid_nick">Ник может состоять только из латиницы, цифр и «_», длина 3–16</string>
+    <string name="skin_not_found">Игрок с таким ником не найден</string>
+    <string name="skin_error">Не удалось получить скин: %1$s</string>
+    <string name="skin_loaded">Скин игрока %1$s загружен</string>
+    <string name="skin_model">Модель: %1$s</string>
+    <string name="skin_apply">Использовать этот скин</string>
+    <string name="skin_applied">Скин применён к профилю</string>
+    <string name="skin_preview">Предпросмотр скина</string>
+    <string name="skin_no_skin">У игрока стандартный скин</string>
+
+    <!-- Шейдеры -->
+    <string name="shaders_title">Паки шейдеров</string>
+    <string name="shaders_add">Добавить пак (.zip)</string>
+    <string name="shaders_empty">Паков нет. Добавьте .zip с шейдерами.</string>
+    <string name="shaders_off">Выключить шейдеры</string>
+    <string name="shaders_active">Активен: %1$s</string>
+    <string name="shaders_none_active">Шейдеры выключены</string>
+    <string name="shaders_installed">Пак «%1$s» установлен</string>
+    <string name="shaders_removed">Пак удалён</string>
+    <string name="shaders_rejected">Пак отклонён: %1$s</string>
+    <string name="shaders_delete">Удалить</string>
+    <string name="shaders_select">Включить</string>
+    <string name="shader_subtitle">%1$s · %2$s · файлов: %3$d</string>
+    <string name="shaders_requirement">%1$s</string>
+    <string name="shaders_warning_title">Предупреждения пака</string>
+
+    <!-- Аккаунт -->
+    <string name="account_title">Аккаунт Microsoft</string>
+    <string name="account_sign_in">Войти через Microsoft</string>
+    <string name="account_sign_out">Выйти</string>
+    <string name="account_offline">Локальный профиль (без входа)</string>
+    <string name="account_offline_hint">Локальный профиль позволяет смотреть скины и управлять паками, но не запускает игру: для запуска нужна лицензия Minecraft.</string>
+    <string name="account_device_code">Откройте %1$s и введите код:\n\n%2$s</string>
+    <string name="account_copy_code">Скопировать код</string>
+    <string name="account_code_copied">Код скопирован</string>
+    <string name="account_waiting">Ждём подтверждения входа…</string>
+    <string name="account_signed_in">Вы вошли как %1$s</string>
+    <string name="account_signed_out">Выход выполнен, токены удалены</string>
+    <string name="account_error">Ошибка входа: %1$s</string>
+    <string name="account_not_configured">Вход не настроен: не задан OLIVER_MS_CLIENT_ID. Смотрите README.</string>
+    <string name="account_no_entitlement">На этом аккаунте нет лицензии Minecraft: Java Edition</string>
+
+    <!-- Запуск -->
+    <string name="launch_title">Запуск</string>
+    <string name="launch_button">Запустить</string>
+    <string name="launch_no_runtime">Среда выполнения Java не найдена. Установите совместимый рантайм — см. README.</string>
+    <string name="launch_no_account">Сначала войдите в аккаунт Microsoft</string>
+    <string name="launch_no_version">Сначала установите версию</string>
+    <string name="launch_token_warning">Передать токен доступа приложению «%1$s»?\n\nТокен даёт полный доступ к вашему игровому аккаунту. Соглашайтесь только если доверяете этому рантайму.</string>
+    <string name="launch_token_allow">Передать</string>
+    <string name="launch_token_deny">Не передавать</string>
+    <string name="launch_handoff">Команда запуска передана рантайму</string>
+
+    <!-- Общее -->
+    <string name="common_ok">ОК</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="common_close">Закрыть</string>
+    <string name="common_retry">Повторить</string>
+    <string name="common_error_network">Нет сети или сервер недоступен</string>
+    <string name="common_error_blocked">Адрес заблокирован политикой безопасности: %1$s</string>
+    <string name="storage_free">Свободно: %1$s</string>
+</resources>

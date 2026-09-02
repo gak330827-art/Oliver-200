@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · палитра. Подпись: OLIVER-200 -->
+<resources>
+    <color name="grass_green">#FF5B8C3E</color>
+    <color name="grass_green_dark">#FF3E6329</color>
+    <color name="diamond">#FF4AC6C6</color>
+    <color name="stone">#FF2B2F33</color>
+    <color name="stone_light">#FF3A4046</color>
+    <color name="bedrock">#FF15181B</color>
+    <color name="text_primary">#FFF2F4F5</color>
+    <color name="text_secondary">#FFA9B2B9</color>
+    <color name="redstone">#FFCF4436</color>
+    <color name="gold">#FFE0B341</color>
+</resources>

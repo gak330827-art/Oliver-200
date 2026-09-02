@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Oliver-200 · сетевая политика. Подпись: OLIVER-200 · см. SIGNATURES.txt
+
+  Главное здесь — <certificates src="system"/> БЕЗ src="user".
+  По умолчанию Android доверяет сертификатам, которые пользователь сам
+  установил в систему. Именно так работает любой перехватывающий прокси
+  (mitmproxy, Charles, Burp) и большинство «модов» лаунчеров: ставится свой
+  CA, и весь трафик — включая токен Microsoft — читается в открытую.
+  Исключив пользовательские CA, мы закрываем этот путь.
+
+  Пиннинг по SPKI закомментирован намеренно: указывать здесь чужие
+  отпечатки «на глаз» нельзя — при ротации ключа Mojang приложение
+  просто перестанет работать у всех сразу. Как включить правильно —
+  написано в SECURITY.md.
+-->
+<network-security-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">mojang.com</domain>
+        <domain includeSubdomains="true">minecraft.net</domain>
+        <domain includeSubdomains="true">minecraftservices.com</domain>
+        <domain includeSubdomains="true">xboxlive.com</domain>
+        <domain includeSubdomains="true">microsoftonline.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+        <!--
+        <pin-set expiration="2027-01-01">
+            <pin digest="SHA-256">ЗАМЕНИТЬ_НА_РЕАЛЬНЫЙ_SPKI</pin>
+            <pin digest="SHA-256">ЗАМЕНИТЬ_НА_РЕЗЕРВНЫЙ_SPKI</pin>
+        </pin-set>
+        -->
+    </domain-config>
+
+    <!-- Отладочные CA доступны только в debug-сборке и никогда в release. -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

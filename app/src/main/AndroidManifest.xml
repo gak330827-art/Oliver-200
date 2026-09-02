@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ══════════════════════════════════════════════════════════════════════════
+   Oliver-200 · Minecraft Launcher for Android
+   Файл       : AndroidManifest.xml
+   Безопасность:
+       · единственный exported-компонент — стартовое активити;
+       · allowBackup=false: облачный бэкап вынес бы зашифрованное хранилище
+         с устройства, где ключ Keystore остался бы недоступен, но сам файл
+         утёк бы наружу;
+       · usesCleartextTraffic=false + networkSecurityConfig: только https
+         и только системные центры сертификации (пользовательские CA
+         исключены — это и есть блокировка перехвата прокси);
+       · разрешений минимум: интернет и его состояние. Ни storage, ни
+         камеры, ни списка приложений.
+   Подпись    : OLIVER-200 · см. SIGNATURES.txt
+  ══════════════════════════════════════════════════════════════════════════
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      Android 11+ прячет от приложения список установленных программ.
+      Без этого блока queryIntentActivities вернёт пустоту, и совместимая
+      среда выполнения Java «не найдётся», хотя стоит на устройстве.
+      Спрашиваем ровно одно действие — не весь список приложений.
+    -->
+    <queries>
+        <intent>
+            <action android:name="com.oliver200.launcher.action.LAUNCH_MINECRAFT" />
+        </intent>
+    </queries>
+
+    <!-- Игра тяжёлая: заявляем требования честно, чтобы Play не ставил на слабые устройства. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
+    <supports-screens
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:xlargeScreens="true" />
+
+    <application
+        android:name=".OliverApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Oliver200"
+        android:usesCleartextTraffic="false"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|density"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Резервных провайдеров и сервисов нет намеренно: нечего экспортировать. -->
+    </application>
+</manifest>

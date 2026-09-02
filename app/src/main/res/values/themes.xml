@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · тема. Подпись: OLIVER-200 -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Oliver200" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/grass_green</item>
+        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="colorPrimaryContainer">@color/grass_green_dark</item>
+        <item name="colorSecondary">@color/diamond</item>
+        <item name="colorError">@color/redstone</item>
+        <item name="android:colorBackground">@color/bedrock</item>
+        <item name="colorSurface">@color/stone</item>
+        <item name="colorSurfaceVariant">@color/stone_light</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="android:statusBarColor">@color/bedrock</item>
+        <item name="android:navigationBarColor">@color/stone</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+</resources>

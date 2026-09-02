@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · Android 11 и ниже. Подпись: OLIVER-200 · см. SIGNATURES.txt -->
+<full-backup-content>
+    <!-- Хранилище токенов зашифровано ключом из Keystore, который НЕ покидает
+         устройство. Копия файла на другом телефоне бесполезна, но и утечка
+         шифротекста нам не нужна: исключаем всё, что связано с аккаунтами. -->
+    <exclude domain="file" path="vault/" />
+    <exclude domain="sharedpref" path="oliver_vault.xml" />
+    <exclude domain="database" path="." />
+</full-backup-content>

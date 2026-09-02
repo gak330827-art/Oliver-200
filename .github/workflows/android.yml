@@ -1,0 +1,97 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Oliver-200 · сборка APK и прогон тестов ядра.
+#  Раннер GitHub уже содержит Android SDK, поэтому модуль :app подключается
+#  автоматически (см. settings.gradle.kts).
+#  Подпись: OLIVER-200 · см. SIGNATURES.txt
+# ═══════════════════════════════════════════════════════════════════════════
+name: Сборка APK
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-tests:
+    name: Тесты ядра
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Кэш Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-core-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Тесты :core (без Android SDK)
+        run: ./gradlew -Poliver.includeApp=false :core:test --stacktrace
+
+      - name: Отчёт о тестах
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-test-report
+          path: core/build/reports/tests/test
+          if-no-files-found: ignore
+
+  apk:
+    name: APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Кэш Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-apk-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Публичный client_id Microsoft (если задан в секретах)
+        env:
+          OLIVER_MS_CLIENT_ID: ${{ secrets.OLIVER_MS_CLIENT_ID }}
+        run: |
+          if [ -n "$OLIVER_MS_CLIENT_ID" ]; then
+            echo "OLIVER_MS_CLIENT_ID=$OLIVER_MS_CLIENT_ID" >> "$GITHUB_ENV"
+            echo "client_id задан"
+          else
+            echo "client_id не задан — вход в аккаунт будет отключён в этой сборке"
+          fi
+
+      - name: Отладочный APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Боевой APK (без подписи — ключей в репозитории нет)
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Выгрузка APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: oliver-200-apk
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
