@@ -36,6 +36,8 @@ MUZ_BASE   = (184, 184, 187)
 INK        = ( 10,  10,  12)
 IRIS       = ( 34,  34,  40)
 SPEC       = (253, 253, 255)
+PATCH      = ( 28,  28,  34)
+PATCH_LIT  = ( 96,  96, 106)
 
 # ---------------- measured geometry (units of FW) -------------------------
 G = dict(
@@ -113,7 +115,7 @@ def _mottle(shape, cell, seed, amp):
 def render_head(face_w=400, turn=0.0, wings=True, body=True, mottle=True,
                 mode='full', flat=(120, 30, 210), accent=(250, 250, 255),
                 stroke=3.0, hood_sx=1.0, hood_sy=1.0, hood_dy=0.0,
-                canvas=3.10):
+                canvas=3.10, patch_side=-1):
     """face_w: face-plate width in output px.  turn: yaw in [-1, 1]."""
     FW = float(face_w) * SS
     W = int(FW * canvas)
@@ -126,7 +128,7 @@ def render_head(face_w=400, turn=0.0, wings=True, body=True, mottle=True,
     sq = 1.0 - 0.17 * abs(turn)                 # and foreshortens
 
     keys = ('wing', 'hood', 'hoodrim', 'ink', 'grey', 'muz',
-            'nose', 'eye', 'iris', 'spec', 'dark')
+            'nose', 'eye', 'iris', 'spec', 'dark', 'patch', 'strap', 'gleam')
     lay = {k: _L(W, H) for k in keys}
     d = {k: ImageDraw.Draw(v) for k, v in lay.items()}
 
@@ -195,6 +197,30 @@ def render_head(face_w=400, turn=0.0, wings=True, body=True, mottle=True,
         _el(d['iris'], icx, icy, g['iris_rx'] * sq, g['iris_ry'])
         _rot_el(d['spec'], icx + g['spec_dx'] * sq, icy + g['spec_dy'],
                 g['spec_rx'] * sq, g['spec_ry'], -20)
+
+    # ---- eye patch (Evil Morty) ----
+    if patch_side:
+        ps = 1 if patch_side > 0 else -1
+        ppx = cx + tx + ps * g['eye_x'] * sq + turn * FW * 0.030
+        ppy = cy + g['eye_y']
+        prx = g['eye_rx'] * sq * 1.34
+        pry = g['eye_ry'] * 1.52
+        _rot_el(d['patch'], ppx, ppy, prx, pry, ps * 8.0)
+        # strap: a thin band across the hood, rising toward the far side
+        ang = np.radians(ps * 27.0)
+        ux, uy = np.cos(ang), np.sin(ang)
+        nx, ny = -uy, ux
+        hw_s = g['hood_hw'] * hood_sx * 1.35
+        half = FW * 0.030
+        pts = []
+        for sgn in (1, -1):
+            for t in (-hw_s, hw_s):
+                pts.append((ppx + ux * t + nx * half * sgn,
+                            ppy + uy * t + ny * half * sgn))
+        d['strap'].polygon([pts[0], pts[1], pts[3], pts[2]], fill=255)
+        # a soft sheen on the leather so it is not a dead black hole
+        _rot_el(d['gleam'], ppx - ps * prx * 0.26, ppy - pry * 0.34,
+                prx * 0.42, pry * 0.26, ps * 6.0)
 
     # ---- nose shadow band + nostrils + mouth ----
     _rr(d['nose'], cx + tx, cy + g['nos_y'] - FW * 0.030,
@@ -279,10 +305,16 @@ def render_head(face_w=400, turn=0.0, wings=True, body=True, mottle=True,
     over(np.array(SPEC, np.float32) / 255.0, A(lay['spec']) * eclip)
     over(np.array(INK, np.float32) / 255.0, A(lay['dark']))
 
+    a_patch = A(lay['patch'])
+    a_strap = A(lay['strap']) * np.clip(a_hood + a_ink + a_grey, 0, 1)
+    patch_all = np.clip(a_patch + a_strap, 0, 1)
+    over(np.array(PATCH, np.float32) / 255.0, patch_all)
+    over(np.array(PATCH_LIT, np.float32) / 255.0, A(lay['gleam']) * a_patch * 0.70)
+
     if mode != 'full':
         sil = np.clip(alpha, 0, 1)
         eyes = np.clip(A(lay['spec']) * 1.15 + A(lay['iris']) * 0.92, 0, 1) * \
-            (A(lay['eye']) * A(lay['grey']))
+            (A(lay['eye']) * A(lay['grey'])) * (1.0 - patch_all)
         if mode == 'silhouette':
             rgb = np.zeros_like(rgb) + np.array(flat, np.float32) / 255.0
             rgb = rgb * (1 - eyes[..., None]) + \
@@ -301,7 +333,8 @@ def render_head(face_w=400, turn=0.0, wings=True, body=True, mottle=True,
             band = contour(sil)
             # face plate + muzzle contours, so the outline reads as a monke face
             band = np.clip(band + contour(a_ink) * 0.95 +
-                           contour(a_muz) * 0.75, 0, 1)
+                           contour(a_muz) * 0.75 +
+                           contour(patch_all) * 0.90, 0, 1)
             rgb = np.zeros_like(rgb) + np.array(accent, np.float32) / 255.0
             alpha = np.clip(band + eyes * 0.85, 0, 1)
 

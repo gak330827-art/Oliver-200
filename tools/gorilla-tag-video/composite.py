@@ -29,6 +29,12 @@ HOOD_DY = -0.02
 
 # per-style grading strength: (luma, chroma)
 GRADE = {'toon': (0.38, 0.16), 'dark': (0.86, 0.46)}
+# Which eye the patch covers, per shot: -1 = viewer's left (the character's
+# own right, as in the source), +1 = mirrored for the shots where the head is
+# turned the other way.  Anything unlisted uses PATCH_DEFAULT.
+PATCH_DEFAULT = -1
+PATCH_SIDE = {25: 1, 33: 1}
+
 # per-segment nudges: (dx, dy in head widths, scale multiplier), measured on
 # 1:1 composites where a sliver of the original head was still showing
 TWEAK = {
@@ -45,21 +51,24 @@ BASE = {}
 def base_assets():
     if BASE:
         return BASE
-    kw = dict(hood_sx=1.0, hood_sy=1.0, hood_dy=HOOD_DY, canvas=CANVAS, body=False)
-    BASE['full'] = np.asarray(ga.render_head(REF, mode='full', **kw)).astype(np.float32)
-    BASE['sil'] = np.asarray(ga.render_head(REF, mode='silhouette',
-                                            flat=(255, 255, 255), accent=(0, 0, 0),
-                                            **kw)).astype(np.float32)
-    BASE['line'] = np.asarray(ga.render_head(REF, mode='outline',
-                                             accent=(255, 255, 255), stroke=3.0,
-                                             **kw)).astype(np.float32)
+    for side in (-1, 1):
+        kw = dict(hood_sx=1.0, hood_sy=1.0, hood_dy=HOOD_DY, canvas=CANVAS,
+                  body=False, patch_side=side)
+        BASE[('full', side)] = np.asarray(
+            ga.render_head(REF, mode='full', **kw)).astype(np.float32)
+        BASE[('sil', side)] = np.asarray(
+            ga.render_head(REF, mode='silhouette', flat=(255, 255, 255),
+                           accent=(0, 0, 0), **kw)).astype(np.float32)
+        BASE[('line', side)] = np.asarray(
+            ga.render_head(REF, mode='outline', accent=(255, 255, 255),
+                           stroke=3.0, **kw)).astype(np.float32)
     (ax, ay), (AW, AH) = ga.anchor(REF, CANVAS)
     BASE['anchor'] = (ax / AW, ay / AH)
     return BASE
 
 
-def scaled(kind, face_w):
-    B = base_assets()[kind]
+def scaled(kind, face_w, side):
+    B = base_assets()[(kind, side)]
     w = max(24, int(round(face_w * CANVAS)))
     h = max(24, int(round(face_w * CANVAS * STRETCH_Y)))
     interp = cv2.INTER_AREA if w < B.shape[1] else cv2.INTER_CUBIC
@@ -166,20 +175,22 @@ def build(f, bgr):
     cy += dy * Hw
     FW = FW_K * Hw
 
+    side = PATCH_SIDE.get(seg, PATCH_DEFAULT)
     if style == 'sil':
         flat, accent = local_colors(bgr, cx, cy, Hw * 0.75)
         # the character's eye reads as a white glow in these shots; keep it
         # bright rather than letting the scene's brightest hue take over
         accent = tuple(int(0.70 * 255 + 0.30 * v) for v in accent)
-        rgba = tint_sil(scaled('sil', FW), flat, accent)
+        rgba = tint_sil(scaled('sil', FW, side), flat, accent)
     elif style == 'line':
         _, accent = local_colors(bgr, cx, cy, Hw * 0.85)
-        rgba = tint_line(scaled('line', FW), accent)
+        rgba = tint_line(scaled('line', FW, side), accent)
         # blank the original outline first, otherwise both heads are drawn
-        blank = tint_sil(scaled('sil', FW), fill_color(bgr, cx, cy, Hw * 0.55),
+        blank = tint_sil(scaled('sil', FW, side),
+                         fill_color(bgr, cx, cy, Hw * 0.55),
                          fill_color(bgr, cx, cy, Hw * 0.55))
     else:
-        rgba = scaled('full', FW).copy()
+        rgba = scaled('full', FW, side).copy()
 
     AH, AW = rgba.shape[:2]
     fx, fy = base_assets()['anchor']
