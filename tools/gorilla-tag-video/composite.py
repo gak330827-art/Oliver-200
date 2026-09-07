@@ -29,11 +29,12 @@ HOOD_DY = -0.02
 
 # per-style grading strength: (luma, chroma)
 GRADE = {'toon': (0.38, 0.16), 'dark': (0.86, 0.46)}
-# Which eye the patch covers, per shot: -1 = viewer's left (the character's
-# own right, as in the source), +1 = mirrored for the shots where the head is
-# turned the other way.  Anything unlisted uses PATCH_DEFAULT.
+# The patch always covers the same eye - a character does not swap eyes between
+# shots.  A couple of source shots are mirrored footage, so their patch sits on
+# the other side there; we ignore that and keep the gorilla consistent, since
+# the gorilla head replaces the original one completely anyway.
 PATCH_DEFAULT = -1
-PATCH_SIDE = {25: 1, 33: 1}
+PATCH_SIDE = {}
 
 # per-segment nudges: (dx, dy in head widths, scale multiplier), measured on
 # 1:1 composites where a sliver of the original head was still showing
