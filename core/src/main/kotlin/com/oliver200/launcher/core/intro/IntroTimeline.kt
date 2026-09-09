@@ -21,9 +21,9 @@
  *  Три проверки логики (то же, что при сборке сцены в Blender):
  *      1) ни одно значение не выходит за 0..1 и не становится NaN —
  *         тест гоняет всю ленту с шагом 1 мс;
- *      2) реплики диктора не наезжают друг на друга и обе успевают
- *         прозвучать до затемнения — проверяется инвариантами ниже;
- *      3) пропуск (тап по экрану) не воспроизводит реплики и всегда
+ *      2) запись диктора успевает доиграть до затемнения — проверяется
+ *         инвариантом ниже;
+ *      3) пропуск (тап по экрану) не включает голос и всегда
  *         доводит кадр до finished — иначе экран завис бы навсегда.
  *
  *  Подпись    : OLIVER-200 · см. SIGNATURES.txt
@@ -35,15 +35,13 @@ package com.oliver200.launcher.core.intro
 enum class IntroPhase { OPENING, MARK, TITLE, ROW, HOLD, OUTRO, DONE }
 
 /**
- * Реплики диктора и их место на ленте.
+ * Звуковые события ленты. Сейчас оно ровно одно: включить запись диктора.
  *
- * Момент реплики — часть раскадровки, а не настройка звука: голос обязан
- * попадать в кадр. BRAND звучит, когда логотип уже собрался, CARE — когда
- * подпись внизу начала проявляться.
+ * Момент — часть раскадровки, а не настройка звука: голос обязан попадать
+ * в кадр. Запись включается тогда, когда знак уже начал собираться.
  */
 enum class IntroCue(val dueAtMs: Long) {
-    BRAND(1_050L),
-    CARE(2_760L),
+    VOICE(1_050L),
 }
 
 /**
@@ -122,9 +120,9 @@ object Ease {
 /**
  * Сама лента. Все времена — миллисекунды от начала ролика.
  *
- *   0 ─── 420 ──── 1140 ─── 1900 ──── 2260 ──── 3220 ──────── 5900 ─── 6500
+ *   0 ─── 420 ──── 1140 ─── 1900 ──── 2260 ──── 3220 ─── 4350 ─── 4900 ─ 5500
  *   │ лист │ знак   │ рамка  │ буквы   │ RU·STEAM │ «Заботимся» │ пауза │ уход
- *                            ▲ диктор: 1050        ▲ диктор: 2760
+ *                            ▲ голос: 1050 ─────────────────────┘
  */
 object IntroScript {
 
@@ -158,7 +156,7 @@ object IntroScript {
      * медленнее. Раньше здесь было 5 400 мс, и на медленном синтезаторе
      * «Заботимся о вас» обрывалось на полуслове.
      */
-    const val OUTRO_AT = 5_900L
+    const val OUTRO_AT = 4_900L
     const val OUTRO_MS = 600L
 
     const val TOTAL_MS = OUTRO_AT + OUTRO_MS
@@ -166,8 +164,16 @@ object IntroScript {
     /** Сколько длится затемнение, если зритель нажал «Пропустить». */
     const val SKIP_FADE_MS = 220L
 
-    /** Запас между репликой и затемнением: короткая фраза диктора ≈ 1,5 с. */
-    const val SPEECH_TAIL_MS = 1_500L
+    /**
+     * Длительность записи диктора (app/src/main/res/raw/intro_voice.ogg).
+     * Меняете запись — правьте и это число: инвариант ниже не даст
+     * экрану погаснуть посреди фразы, но узнать длину файла из :core
+     * невозможно, ресурсы живут в другом модуле.
+     */
+    const val VOICE_MS = 3_300L
+
+    /** Пауза между концом голоса и началом затемнения. */
+    const val VOICE_TAIL_MS = 400L
 
     init {
         // Инварианты раскадровки. Если кто-то поправит одну константу и
@@ -182,16 +188,10 @@ object IntroScript {
             "Порядок сборки логотипа нарушен: диск → рамка → буквы → строка"
         }
         require(ROW_AT < CAPTION_AT) { "Подпись не может опережать логотип" }
-        require(IntroCue.BRAND.dueAtMs >= TITLE_AT) {
-            "Диктор называет бренд раньше, чем появились буквы"
+        require(IntroCue.VOICE.dueAtMs >= TITLE_AT) {
+            "Голос вступает раньше, чем появились буквы"
         }
-        require(IntroCue.CARE.dueAtMs >= CAPTION_AT) {
-            "Диктор произносит подпись раньше, чем она появилась на экране"
-        }
-        require(IntroCue.CARE.dueAtMs - IntroCue.BRAND.dueAtMs >= SPEECH_TAIL_MS) {
-            "Реплики диктора наезжают друг на друга"
-        }
-        require(OUTRO_AT >= IntroCue.CARE.dueAtMs + SPEECH_TAIL_MS) {
+        require(OUTRO_AT >= IntroCue.VOICE.dueAtMs + VOICE_MS + VOICE_TAIL_MS) {
             "Экран гаснет раньше, чем диктор договорил"
         }
         require(CAPTION_AT + CAPTION_MS <= OUTRO_AT) {
@@ -250,10 +250,6 @@ object IntroScript {
      */
     fun cuesBetween(fromExclusiveMs: Long, toInclusiveMs: Long): List<IntroCue> {
         if (toInclusiveMs <= fromExclusiveMs) return emptyList()
-        // Быстрый выход: подавляющее большинство кадров лежит вне окон реплик.
-        if (toInclusiveMs < IntroCue.BRAND.dueAtMs || fromExclusiveMs >= IntroCue.CARE.dueAtMs) {
-            return emptyList()
-        }
         var out: ArrayList<IntroCue>? = null
         for (cue in IntroCue.entries) {
             if (cue.dueAtMs > fromExclusiveMs && cue.dueAtMs <= toInclusiveMs) {
@@ -302,7 +298,7 @@ class IntroPlayback {
         )
     }
 
-    /** После пропуска диктор молчит: зритель уже сказал «дальше». */
+    /** После пропуска голос не включается: зритель уже сказал «дальше». */
     fun cuesDue(fromExclusiveMs: Long, toInclusiveMs: Long): List<IntroCue> =
         if (isSkipping) emptyList() else IntroScript.cuesBetween(fromExclusiveMs, toInclusiveMs)
 

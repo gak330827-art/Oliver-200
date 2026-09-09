@@ -12,6 +12,8 @@
  *  замирает и продолжается с того же места, а не «доигрывает вслепую».
  *
  *  Безопасность:
+ *      · голос — своя запись в res/raw, а не чужой движок TTS: наружу
+ *        не уходит ничего и ни одного обращения к чужому коду нет;
  *      · fail-closed по бренду: не открылся шифрованный контейнер —
  *        заставки нет вообще, сразу главный экран. Показать «что-нибудь»
  *        вместо знака нельзя: подменённая заставка это фишинг;
@@ -143,11 +145,9 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
         caption.alpha = clamp01(f.captionAlpha * f.master)
         caption.translationY = f.captionRise * captionRisePx
 
-        val texts = brand
-        if (texts != null) {
-            val voice = announcer
-            for (cue in playback.cuesDue(lastCueMs, elapsedMs)) voice?.say(cue, texts)
-        }
+        // Единственное звуковое событие ленты: включить запись диктора.
+        val voice = announcer
+        if (voice != null && playback.cuesDue(lastCueMs, elapsedMs).isNotEmpty()) voice.play()
         lastCueMs = elapsedMs
 
         if (f.finished) {

@@ -71,11 +71,13 @@ def kotlin_consts(path):
 
 
 def cue_times(path):
+    """Звуковые отметки ленты — как они объявлены в enum IntroCue."""
     text = open(path, encoding="utf-8").read()
-    out = {}
-    for m in re.finditer(r"(BRAND|CARE)\((-?[0-9_]+)L\)", text):
-        out[m.group(1)] = int(m.group(2).replace("_", ""))
-    return out
+    block = re.search(r"enum class IntroCue\(val dueAtMs: Long\) \{(.*?)\}", text, re.S)
+    if not block:
+        return {}
+    return {m.group(1): int(m.group(2).replace("_", ""))
+            for m in re.finditer(r"([A-Z][A-Z_]*)\((-?[0-9_]+)L\)", block.group(1))}
 
 
 def brand_texts(path):
@@ -415,8 +417,8 @@ def main():
     cues = cue_times(TIMELINE_KT)
     script = Script(consts)
 
-    print("лента из кода: всего %d мс, диктор на %d и %d мс"
-          % (script.total, cues.get("BRAND", -1), cues.get("CARE", -1)))
+    marks = ", ".join("%s на %d мс" % (k, v) for k, v in cues.items()) or "нет"
+    print("лента из кода: всего %d мс, звук: %s" % (script.total, marks))
     print("знак: %s / %s · %s %s · «%s»" % (brand["wordmarkTop"], brand["wordmarkBottom"],
                                             brand["badge"], brand["platform"], brand["care"]))
 

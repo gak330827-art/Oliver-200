@@ -29,7 +29,10 @@ package com.oliver200.launcher.core.intro
 class IntroBrandException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
- * Тексты заставки. Раскладка повторяет знак сообщества:
+ * Тексты заставки. Голоса здесь нет: диктор — живая запись
+ * (app/src/main/res/raw/intro_voice.ogg), а не строка для синтезатора.
+ *
+ * Раскладка повторяет знак сообщества:
  *
  *     ┌───────────────────────────┐
  *     │  ANIMAL                   │   ← wordmarkTop
@@ -53,30 +56,12 @@ data class IntroBrand(
     val platform: String,
     /** Подпись под логотипом. */
     val care: String,
-    /** Реплика 1 для русского голоса. */
-    val voiceRuBrand: String,
-    /** Реплика 2 для русского голоса. */
-    val voiceRuCare: String,
-    /** Реплика 1 для нерусского голоса. */
-    val voiceEnBrand: String,
-    /** Реплика 2 для нерусского голоса. */
-    val voiceEnCare: String,
-) {
-    /**
-     * Текст реплики. Диктор умеет произносить ТОЛЬКО то, что вернёт этот
-     * метод: на входе enum, а не строка, поэтому передать в озвучку ник,
-     * токен или пришедший из сети текст физически невозможно.
-     */
-    fun voice(cue: IntroCue, russianVoice: Boolean): String = when (cue) {
-        IntroCue.BRAND -> if (russianVoice) voiceRuBrand else voiceEnBrand
-        IntroCue.CARE -> if (russianVoice) voiceRuCare else voiceEnCare
-    }
-}
+)
 
 /**
  * Сериализация записи бренда.
  *
- * Формат: `OL2B1 <US> поле1 <US> … <US> поле9`, где `<US>` — U+001F.
+ * Формат: `OL2B1 <US> поле1 <US> … <US> поле5`, где `<US>` — U+001F.
  * Разделитель взят из управляющей зоны намеренно: внутри полей
  * управляющие символы запрещены, поэтому склеить два поля в одно
  * нельзя ни случайно, ни специально.
@@ -88,7 +73,7 @@ object IntroBrandCodec {
     /** U+001F, разделитель полей (записан кодом, чтобы не прятаться в тексте). */
     val SEPARATOR: Char = Char(31)
 
-    const val FIELDS = 9
+    const val FIELDS = 5
     const val MAX_FIELD_CHARS = 64
 
     @Throws(IntroBrandException::class)
@@ -112,10 +97,6 @@ object IntroBrandCodec {
             badge = parts[3],
             platform = parts[4],
             care = parts[5],
-            voiceRuBrand = parts[6],
-            voiceRuCare = parts[7],
-            voiceEnBrand = parts[8],
-            voiceEnCare = parts[9],
         )
     }
 
@@ -125,10 +106,6 @@ object IntroBrandCodec {
         brand.badge,
         brand.platform,
         brand.care,
-        brand.voiceRuBrand,
-        brand.voiceRuCare,
-        brand.voiceEnBrand,
-        brand.voiceEnCare,
     )
 
     /**

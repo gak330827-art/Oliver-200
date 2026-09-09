@@ -98,7 +98,7 @@ class IntroTimelineTest {
     }
 
     @Test
-    fun `диктор произносит каждую реплику ровно один раз`() {
+    fun `голос включается ровно один раз`() {
         for (step in listOf(8L, 16L, 33L, 50L, 120L)) {
             val playback = IntroPlayback()
             val heard = ArrayList<IntroCue>()
@@ -109,32 +109,35 @@ class IntroTimelineTest {
                 last = t
                 t += step
             }
-            assertEquals(listOf(IntroCue.BRAND, IntroCue.CARE), heard, "Шаг кадра $step мс")
+            assertEquals(listOf(IntroCue.VOICE), heard, "Шаг кадра $step мс")
         }
     }
 
     @Test
-    fun `реплики попадают в кадр и успевают договорить`() {
-        val brandFrame = IntroScript.frameAt(IntroCue.BRAND.dueAtMs)
-        assertTrue(brandFrame.markAlpha > 0.9f, "Бренд назван, а логотипа ещё не видно")
+    fun `голос вступает в кадр и успевает договорить`() {
+        val atVoice = IntroScript.frameAt(IntroCue.VOICE.dueAtMs)
+        assertTrue(atVoice.markAlpha > 0.9f, "Голос вступил, а знака ещё не видно")
 
-        val careFrame = IntroScript.frameAt(IntroCue.CARE.dueAtMs)
-        assertTrue(careFrame.captionAlpha > 0.5f, "Подпись произнесена раньше, чем видна")
-
+        val voiceEnds = IntroCue.VOICE.dueAtMs + IntroScript.VOICE_MS
         assertTrue(
-            IntroScript.OUTRO_AT - IntroCue.CARE.dueAtMs >= IntroScript.SPEECH_TAIL_MS,
+            IntroScript.OUTRO_AT >= voiceEnds + IntroScript.VOICE_TAIL_MS,
             "Экран гаснет раньше, чем диктор договорил",
+        )
+        // Подпись обязана быть на экране, пока голос ещё звучит.
+        assertTrue(
+            IntroScript.frameAt(voiceEnds).captionAlpha > 0.9f,
+            "Голос договорил, а подписи на экране так и не было",
         )
     }
 
     @Test
-    fun `пропуск гасит сцену и обрывает диктора`() {
+    fun `пропуск гасит сцену и не включает голос`() {
         val playback = IntroPlayback()
         val skipAt = 1_500L
         playback.requestSkip(skipAt)
         assertTrue(playback.isSkipping)
 
-        assertTrue(playback.cuesDue(skipAt, IntroScript.TOTAL_MS).isEmpty(), "После пропуска диктор молчит")
+        assertTrue(playback.cuesDue(skipAt, IntroScript.TOTAL_MS).isEmpty(), "После пропуска голос не включается")
 
         val atSkip = playback.frameAt(skipAt)
         assertEquals(1f, atSkip.master)
@@ -211,9 +214,9 @@ class IntroTimelineTest {
 
     @Test
     fun `окно реплик считается по полуинтервалу`() {
-        val at = IntroCue.BRAND.dueAtMs
+        val at = IntroCue.VOICE.dueAtMs
         assertTrue(IntroScript.cuesBetween(at, at + 5).isEmpty(), "Левая граница обязана быть открытой")
-        assertEquals(listOf(IntroCue.BRAND), IntroScript.cuesBetween(at - 5, at))
+        assertEquals(listOf(IntroCue.VOICE), IntroScript.cuesBetween(at - 5, at))
         assertTrue(IntroScript.cuesBetween(at, at).isEmpty())
         assertTrue(IntroScript.cuesBetween(at + 10, at).isEmpty())
     }

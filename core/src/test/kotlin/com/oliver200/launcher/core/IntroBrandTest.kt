@@ -12,7 +12,6 @@ import com.oliver200.launcher.core.intro.IntroBrand
 import com.oliver200.launcher.core.intro.IntroBrandCodec
 import com.oliver200.launcher.core.intro.IntroBrandException
 import com.oliver200.launcher.core.intro.IntroBrandSource
-import com.oliver200.launcher.core.intro.IntroCue
 import com.oliver200.launcher.core.intro.PlainIntroBrand
 import com.oliver200.launcher.core.intro.SealedIntroBrand
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -46,16 +45,6 @@ class IntroBrandTest {
         assertThrows(IntroBrandException::class.java) {
             SealedIntroBrand.load(SealedIntroBrand.BINDING_DEFAULT + "1")
         }
-    }
-
-    @Test
-    fun `реплики диктора выбираются по языку голоса`() {
-        val brand = SealedIntroBrand.load()
-        assertEquals(brand.voiceRuBrand, brand.voice(IntroCue.BRAND, russianVoice = true))
-        assertEquals(brand.voiceRuCare, brand.voice(IntroCue.CARE, russianVoice = true))
-        assertEquals(brand.voiceEnBrand, brand.voice(IntroCue.BRAND, russianVoice = false))
-        assertEquals(brand.voiceEnCare, brand.voice(IntroCue.CARE, russianVoice = false))
-        assertTrue(brand.voiceRuBrand.none { it in 'A'..'Z' }, "Русской реплике нечего делать с латиницей")
     }
 
     @Test

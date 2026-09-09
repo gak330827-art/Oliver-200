@@ -63,11 +63,8 @@ object SealedIntroBrand {
     private const val SHARD_C = "92245323672f68ba4efe625cfa34a0488a788f4d4c8ad4503bbb71cc30b72b88"
 
     private const val SEALED_B64 =
-        "T0wyRQEAAAAAAAAM7nDw2HZ46cpsWzxqqJfsdNGqapJYsJIPz66AAsNGyM+nhSEKmTjKDU4f" +
-        "c8BAlCwtT1K9RbeHghV+IiOZYKgbH6xLCaDi7fx5hTRvnsFOp3eXdtclN/zr9QPxevpeUtIu" +
-        "MXqttm1iRJtIxUxxLdgsDRldeBX/KtH2OsP6Q+MLhwHKuTcLIGO3qQFimgdke1FAaAy4JmKa" +
-        "d4PxEpewbE95bmSGq3VF55r/pn/08siLcf/kKwAJpOF7wECo/GG4Hfpy862dI/3OgymMgtaQ" +
-        "vF11zELY9Yi2UJssrvw="
+        "T0wyRQEAAAAAAAAMQwIA6CIJCa+SYGWBfIMIItJXEZFeux5ckCJDgrerYCqk82k4wooDBJKj" +
+        "JI1+qoEnPcwj0PwyaYI9/wHUVFVLBSttorsqBjTYLorMWT9zfPok6pAcvhFY6pAzPS03A8Eg"
 
     /**
      * Открывает контейнер и разбирает запись.

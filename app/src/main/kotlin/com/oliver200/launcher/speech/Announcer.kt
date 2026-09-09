@@ -2,29 +2,32 @@
  * ══════════════════════════════════════════════════════════════════════════
  *  Oliver-200 · Minecraft Launcher for Android
  *  Файл       : speech/Announcer.kt
- *  Назначение : голос диктора на заставке. Две короткие реплики: название
- *               сообщества и «Заботимся о вас».
+ *  Назначение : голос диктора на заставке — живая запись, лежащая
+ *               в приложении (res/raw/intro_voice.ogg).
  *
  *  ВАРИАНТ    : БЕЗ ШИФРОВАНИЯ (секретов не хранит и хранить не может).
  *
- *  Безопасность и приличия — почему тут столько ограничений:
- *      · Движок TTS — ЧУЖОЕ приложение, и часть движков синтезирует речь
- *        на своём сервере. Значит всё, что сюда передано, может уйти
- *        в сеть. Поэтому на входе [IntroCue] и [IntroBrand], а не String:
- *        передать сюда ник, токен или ответ сервера физически нельзя —
- *        нет такого метода.
- *      · Телефон в беззвучном режиме молчит. Лаунчер, который орёт
- *        на весь автобус, потому что «у нас красивая заставка», — это
- *        не фича.
- *      · Фокус звука берётся временный, с приглушением чужой музыки,
- *        и сразу отдаётся. Потеряли фокус — замолчали.
- *      · Ничего не логируется: реплики не секрет, но и лишних записей
- *        о том, что и когда произносилось, в logcat не нужно.
+ *  Почему запись, а не синтезатор речи:
+ *      · движок TTS — ЧУЖОЕ приложение, и часть движков синтезирует речь
+ *        на своём сервере. Со своей записью наружу не уходит ничего,
+ *        и в приложении не остаётся ни одного обращения к чужому коду;
+ *      · на разных телефонах стоят разные движки и голоса, и заставка
+ *        звучала бы у всех по-своему — а это часть знака сообщества;
+ *      · длительность записи известна заранее, поэтому раскадровка
+ *        (IntroScript.VOICE_MS) точно знает, когда экрану гаснуть.
  *
- *  Живучесть: движок инициализируется асинхронно и на части устройств
- *  отсутствует вовсе. Реплика, пришедшая до готовности, ждёт в очереди
- *  из ОДНОГО элемента и выбрасывается, если опоздала больше чем
- *  на [LATE_LIMIT_MS] — лучше тишина, чем голос поверх уже другого кадра.
+ *  Приличия остались прежними:
+ *      · телефон в беззвучном режиме молчит. Лаунчер, который орёт
+ *        на весь автобус, потому что «у нас красивая заставка», — это
+ *        не фича;
+ *      · фокус звука берётся временный, с приглушением чужой музыки,
+ *        и сразу отдаётся. Потеряли фокус — замолчали;
+ *      · ничего не логируется.
+ *
+ *  Живучесть: файл готовится асинхронно. Команда, пришедшая раньше
+ *  готовности, ждёт в очереди из ОДНОГО элемента и выбрасывается, если
+ *  опоздала больше чем на [LATE_LIMIT_MS] — лучше тишина, чем голос
+ *  поверх уже другого кадра.
  *
  *  Подпись    : OLIVER-200 · см. SIGNATURES.txt
  * ══════════════════════════════════════════════════════════════════════════
@@ -35,17 +38,15 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.speech.tts.TextToSpeech
-import com.oliver200.launcher.core.intro.IntroBrand
-import com.oliver200.launcher.core.intro.IntroCue
-import java.util.Locale
+import com.oliver200.launcher.R
 
 class Announcer(context: Context, enabled: Boolean) {
 
-    private enum class State { STARTING, READY, FAILED, CLOSED }
+    private enum class State { PREPARING, READY, PLAYING, FAILED, CLOSED }
 
     private val appContext = context.applicationContext
     private val audio = appContext.getSystemService(AudioManager::class.java)
@@ -62,141 +63,107 @@ class Announcer(context: Context, enabled: Boolean) {
         }
     }
 
-    private var tts: TextToSpeech? = null
-    private var state: State = State.STARTING
-    private var russianVoice = false
-    private var spokenCount = 0
+    private var player: MediaPlayer? = null
+    private var state: State = State.PREPARING
     private var focusRequest: AudioFocusRequest? = null
-
-    private var pendingCue: IntroCue? = null
-    private var pendingBrand: IntroBrand? = null
     private var pendingAtMs = 0L
+    private var pending = false
 
     init {
         if (!enabled) {
             state = State.FAILED
         } else {
-            tts = try {
-                // Слушатель может прийти на чужом потоке — уводим на главный.
-                TextToSpeech(appContext) { status -> main.post { onInit(status) } }
+            player = try {
+                MediaPlayer().apply {
+                    setAudioAttributes(attributes)
+                    appContext.resources.openRawResourceFd(R.raw.intro_voice).use { fd ->
+                        setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
+                    }
+                    setOnPreparedListener { main.post { onPrepared() } }
+                    setOnCompletionListener { main.post { abandonFocus() } }
+                    setOnErrorListener { _, _, _ ->
+                        main.post { fail() }
+                        true
+                    }
+                    prepareAsync()
+                }
             } catch (e: Exception) {
+                // Ресурса нет, кодек не открылся, память кончилась — заставка
+                // молча идёт без голоса. Ронять из-за звука экран нельзя.
                 state = State.FAILED
                 null
             }
         }
     }
 
-    /** Готов ли голос. До инициализации движка — ещё неизвестно. */
+    /** Голоса не будет: выключен настройкой или не открылся файл. */
     val isSilent: Boolean get() = state == State.FAILED || state == State.CLOSED
 
-    /**
-     * Произнести реплику. Набор фраз закрыт: [cue] выбирает строку внутри
-     * [brand], произвольный текст сюда не передаётся никогда.
-     */
-    fun say(cue: IntroCue, brand: IntroBrand) {
+    /** Включить запись. Вызывается один раз, на своей отметке ленты. */
+    fun play() {
         when (state) {
-            State.STARTING -> {
-                // Очередь ровно на одну реплику: вторая вытеснит первую,
-                // и это правильно — устаревшую всё равно нельзя произносить.
-                pendingCue = cue
-                pendingBrand = brand
+            State.PREPARING -> {
+                pending = true
                 pendingAtMs = SystemClock.elapsedRealtime()
                 return
             }
             State.READY -> Unit
-            State.FAILED, State.CLOSED -> return
+            State.PLAYING, State.FAILED, State.CLOSED -> return
         }
 
-        val engine = tts ?: return
+        val media = player ?: return
         if (isMuted()) return
-
-        val text = brand.voice(cue, russianVoice)
-        if (text.isEmpty()) return
         if (!requestFocus()) return
-
-        // Первая реплика начинает очередь, вторая встаёт следом и не рвёт её.
-        val mode = if (spokenCount == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-        val id = UTTERANCE_PREFIX + cue.name
-        if (engine.speak(text, mode, null, id) == TextToSpeech.SUCCESS) {
-            spokenCount++
+        try {
+            media.start()
+            state = State.PLAYING
+        } catch (e: IllegalStateException) {
+            fail()
         }
     }
 
     /** Замолчать, но остаться живым: экран ушёл в фон. */
     fun stop() {
+        val media = player
         try {
-            tts?.stop()
-        } catch (e: Exception) {
-            // Движок мог умереть вместе со своим процессом — это не наша беда.
+            if (state == State.PLAYING && media != null && media.isPlaying) media.pause()
+        } catch (e: IllegalStateException) {
+            // Плеер уже не в том состоянии — значит и останавливать нечего.
         }
         abandonFocus()
     }
 
-    /** Отпустить движок насовсем. Обязателен в onDestroy, иначе течёт сервис. */
+    /** Отпустить плеер насовсем. Обязателен в onDestroy, иначе течёт кодек. */
     fun shutdown() {
         state = State.CLOSED
-        pendingCue = null
-        pendingBrand = null
+        pending = false
         main.removeCallbacksAndMessages(null)
-        val engine = tts
-        tts = null
+        val media = player
+        player = null
         try {
-            engine?.stop()
-            engine?.shutdown()
+            media?.release()
         } catch (e: Exception) {
-            // См. выше: закрываем как получится, падать на выходе нельзя.
+            // Закрываем как получится: падать на выходе нельзя.
         }
         abandonFocus()
     }
 
     /* ───────────────────────────── Внутреннее ───────────────────────────── */
 
-    private fun onInit(status: Int) {
-        if (state == State.CLOSED) return
-        val engine = tts
-        if (status != TextToSpeech.SUCCESS || engine == null) {
-            state = State.FAILED
-            return
-        }
-        val locale = pickLocale(engine)
-        if (locale == null) {
-            state = State.FAILED
-            return
-        }
-        russianVoice = locale.language == RUSSIAN
-        engine.setPitch(PITCH)
-        engine.setSpeechRate(RATE)
-        engine.setAudioAttributes(attributes)
+    private fun onPrepared() {
+        if (state == State.CLOSED || state == State.FAILED) return
         state = State.READY
-
-        val cue = pendingCue
-        val brand = pendingBrand
-        pendingCue = null
-        pendingBrand = null
-        if (cue != null && brand != null &&
-            SystemClock.elapsedRealtime() - pendingAtMs <= LATE_LIMIT_MS
-        ) {
-            say(cue, brand)
+        if (pending && SystemClock.elapsedRealtime() - pendingAtMs <= LATE_LIMIT_MS) {
+            pending = false
+            play()
         }
+        pending = false
     }
 
-    /** Русский голос — родной для этих реплик; дальше язык системы, дальше английский. */
-    private fun pickLocale(engine: TextToSpeech): Locale? {
-        val candidates = listOf(Locale("ru", "RU"), Locale.getDefault(), Locale.US)
-        for (locale in candidates) {
-            val result = try {
-                engine.setLanguage(locale)
-            } catch (e: Exception) {
-                TextToSpeech.LANG_NOT_SUPPORTED
-            }
-            if (result == TextToSpeech.LANG_AVAILABLE ||
-                result == TextToSpeech.LANG_COUNTRY_AVAILABLE ||
-                result == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE
-            ) {
-                return locale
-            }
-        }
-        return null
+    private fun fail() {
+        if (state == State.CLOSED) return
+        state = State.FAILED
+        abandonFocus()
     }
 
     /** Беззвучный режим и нулевая громкость медиа — повод молчать. */
@@ -231,12 +198,7 @@ class Announcer(context: Context, enabled: Boolean) {
     }
 
     private companion object {
-        const val RUSSIAN = "ru"
-        /** Ниже и медленнее обычного: узнаваемая подача диктора. */
-        const val PITCH = 0.86f
-        const val RATE = 0.95f
-        /** Позже этого реплика уже не в кадре — лучше промолчать. */
+        /** Позже этого запись уже не в кадре — лучше промолчать. */
         const val LATE_LIMIT_MS = 2_500L
-        const val UTTERANCE_PREFIX = "oliver-intro-"
     }
 }
