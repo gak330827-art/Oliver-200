@@ -186,6 +186,20 @@ tools/sign.sh            # пересчитать после правок
 флаге синтезатор речи вообще не создаётся. Телефон в беззвучном режиме
 или с нулевой громкостью медиа заставка не озвучивает.
 
+Посмотреть заставку, не собирая APK:
+
+```bash
+apt-get install ffmpeg fonts-roboto-unhinted   # разово
+pip install pillow numpy
+python3 tools/render_intro.py --out intro.mp4 --audio voice.mp3
+python3 tools/render_intro.py --out intro.mp4 --clean   # без кнопки «Пропустить»
+```
+
+Инструмент собирает ролик покадрово и **не содержит ни одной своей
+константы**: тайминги читает из `IntroTimeline.kt`, пропорции знака — из
+`IntroLogoView.kt`, тексты — из `PlainIntroBrand.kt`. Поправили ленту
+в коде — видео пересобирается тем же роликом, а не похожим на него.
+
 Поменять тексты знака:
 
 ```bash

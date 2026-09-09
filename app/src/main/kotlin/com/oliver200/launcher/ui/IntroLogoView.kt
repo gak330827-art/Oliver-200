@@ -75,6 +75,10 @@ class IntroLogoView @JvmOverloads constructor(
         const val GAP_ROW_PER_H = 0.030f
         /** Ширина светового блика в радиусах диска. */
         const val SHINE_W_PER_R = 0.85f
+        /** Ореол вокруг диска: радиус, начало спада и предельная непрозрачность. */
+        const val GLOW_R_PER_R = 1.45f
+        const val GLOW_INNER_STOP = 0.70f
+        const val GLOW_ALPHA = 0.13f
         /** Доля прогресса, за которую проявляется одна буква. */
         const val LETTER_WINDOW = 0.34f
     }
@@ -298,12 +302,15 @@ class IntroLogoView @JvmOverloads constructor(
             backdropOuter,
             Shader.TileMode.CLAMP,
         )
+        // Ореол только приподнимает диск над фоном. Сильнее нельзя: на
+        // оригинальном знаке никакого свечения нет, и заметное гало
+        // читается как чужой эффект, а не как этот логотип.
         glowPaint.shader = RadialGradient(
             centerX,
             centerY,
-            radius * 1.45f,
-            intArrayOf(Color.argb(70, 255, 255, 255), Color.TRANSPARENT),
-            floatArrayOf(0.62f, 1f),
+            radius * GLOW_R_PER_R,
+            intArrayOf(Color.argb((255 * GLOW_ALPHA).toInt(), 255, 255, 255), Color.TRANSPARENT),
+            floatArrayOf(GLOW_INNER_STOP, 1f),
             Shader.TileMode.CLAMP,
         )
         shineWidth = radius * SHINE_W_PER_R
@@ -365,7 +372,7 @@ class IntroLogoView @JvmOverloads constructor(
         canvas.scale(f.discScale, f.discScale, centerX, centerY)
 
         glowPaint.alpha = alpha255(discAlpha)
-        canvas.drawCircle(centerX, centerY, radius * 1.45f, glowPaint)
+        canvas.drawCircle(centerX, centerY, radius * GLOW_R_PER_R, glowPaint)
 
         discPaint.alpha = alpha255(discAlpha)
         canvas.drawCircle(centerX, centerY, radius, discPaint)
