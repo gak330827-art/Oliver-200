@@ -69,9 +69,9 @@ d04db2360d5fd70c1849630ffce80f110f2f35c9fecc9dca4c562b86de1a6e5f  app/src/main/r
 b8f430c4f005f101e28792a557c23de41b1d847184a5cd66e14c6c8f21b1c292  core/src/main/kotlin/com/oliver200/launcher/core/hash/Hashing.kt
 869fffcac24250b1a6ed000262ceb9588c99a6db915ce56cbab310e8c035f7b4  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroBrand.kt
 5e8eeec481782241ad3f456dd7cd74eeb8f0f64fcc4860873b3b9f73071a8c95  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroBrandSource.kt
-9b94076ae3be0da4311701ecd6a94ceba67e7c0f20cb0cb0ad157449b7f5570e  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroTimeline.kt
-868056dd0e34bc79c0b581a7b993c87464cec608a5668b10de031e648216bd11  core/src/main/kotlin/com/oliver200/launcher/core/intro/PlainIntroBrand.kt
-5435d4201df7b0c2f13b0aafc6e3b2e898bf01c7e04b239b9cd210438c12b53a  core/src/main/kotlin/com/oliver200/launcher/core/intro/SealedIntroBrand.kt
+b7c60b92820124a47ba54c1e783eddcaaebb5054b73c9fc6f6a71423839537fa  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroTimeline.kt
+658a84d36ebda826108bc5ca14fcd9cbec25e914ddbd3ba45ce11a14c07b2b23  core/src/main/kotlin/com/oliver200/launcher/core/intro/PlainIntroBrand.kt
+28da1f20a071f87ad781cbb377492e5006ce74c243b04eb40eb0df0dacff0462  core/src/main/kotlin/com/oliver200/launcher/core/intro/SealedIntroBrand.kt
 4999fd24b254687efa727e11a97045fac7a328b990ecf63ae92bc2f2cc54a937  core/src/main/kotlin/com/oliver200/launcher/core/io/SafePath.kt
 8ff964d808c5be54f7a7495d4e34d2afe31550633755c8e966934289a1e0ad25  core/src/main/kotlin/com/oliver200/launcher/core/io/SafeZip.kt
 4d9c3988387ef1afd3a20b8e47a4224eb436390812104ab21404822b0cd56142  core/src/main/kotlin/com/oliver200/launcher/core/json/Json.kt
@@ -105,5 +105,5 @@ d3281bf710509acab9f8e1085c9e4624b45401c1d501a36fee74a6c180b9eab4  gradle.propert
 b187b4c52e749f5760afdd6fadc31b2a98ad35fb249bf0dff03b72650f320409  gradlew
 1d297e00bd21de3ace22b4d7f2de1f9dfa858883d66bbf7c1ccbecccec8f4f3b  gradlew.bat
 c2aa8ba074a37819c16bdf194baf71b44ed6bfa82e9580ac21e3a20effec1658  settings.gradle.kts
-a141eee07a42259f14d8c24612787fe90f891e2fbb1609a1b391541d8cd034a6  tools/SealBrand.java
+85ba9cad93696168ffd96742e3071fae64bd05fb7ca86d4f02bc87d13ab0bb0f  tools/SealBrand.java
 dd5d57187f83ab15c6a811bc604f6a282f6e5a080222960f225148cc4b2569b8  tools/sign.sh

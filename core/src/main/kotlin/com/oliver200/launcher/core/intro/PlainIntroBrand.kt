@@ -39,9 +39,9 @@ object PlainIntroBrand {
         badge = "RU",
         platform = "STEAM COMMUNITY",
         care = "Заботимся о вас",
-        voiceRuBrand = "Энимал Компани. Стим Комьюнити Ру.",
+        voiceRuBrand = "Энимал Компани, Стим Ру.",
         voiceRuCare = "Заботимся о вас.",
-        voiceEnBrand = "Animal Company. Steam Community R U.",
+        voiceEnBrand = "Animal Company, Steam R U.",
         voiceEnCare = "We take care of you.",
     )
 

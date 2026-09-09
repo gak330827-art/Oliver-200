@@ -63,11 +63,11 @@ object SealedIntroBrand {
     private const val SHARD_C = "92245323672f68ba4efe625cfa34a0488a788f4d4c8ad4503bbb71cc30b72b88"
 
     private const val SEALED_B64 =
-        "T0wyRQEAAAAAAAAMxZN90wHi4ciIzY2UmWc86n0TKUJsgl3oIerh8xRYyVYrq/U83BWptId8" +
-        "iGPB6N/OswEBRRY+0cQoWLvPdRU7uvrEB7r8nlan9MdrFYPtc5oNdKLpzmnj0EqUoS9883JW" +
-        "fKMf+ZnKdEKeHlMk1DjJ6Hrm9LHnMSsn8JuADsWGjf3q2SrK/Zgs1GN7jq9OLuT8Xb4KpK/u" +
-        "ITM/PaBbUOTomnxRa5Fhbcrl35YPWCbZE/cCm8IiPOdbldXvT2DLWqDeIoEZ+qmbvux2IBnn" +
-        "PyMw0XZfCoD52JIeLjYs+E7ej9gHKN2vhNVTM0YmYymidxjxpi+Lc1sYAw=="
+        "T0wyRQEAAAAAAAAM7nDw2HZ46cpsWzxqqJfsdNGqapJYsJIPz66AAsNGyM+nhSEKmTjKDU4f" +
+        "c8BAlCwtT1K9RbeHghV+IiOZYKgbH6xLCaDi7fx5hTRvnsFOp3eXdtclN/zr9QPxevpeUtIu" +
+        "MXqttm1iRJtIxUxxLdgsDRldeBX/KtH2OsP6Q+MLhwHKuTcLIGO3qQFimgdke1FAaAy4JmKa" +
+        "d4PxEpewbE95bmSGq3VF55r/pn/08siLcf/kKwAJpOF7wECo/GG4Hfpy862dI/3OgymMgtaQ" +
+        "vF11zELY9Yi2UJssrvw="
 
     /**
      * Открывает контейнер и разбирает запись.

@@ -50,9 +50,9 @@ public final class SealBrand {
         "RU",
         "STEAM COMMUNITY",
         "Заботимся о вас",
-        "Энимал Компани. Стим Комьюнити Ру.",
+        "Энимал Компани, Стим Ру.",
         "Заботимся о вас.",
-        "Animal Company. Steam Community R U.",
+        "Animal Company, Steam R U.",
         "We take care of you.",
     };
 
