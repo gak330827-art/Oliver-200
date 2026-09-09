@@ -22,7 +22,7 @@ class IntroTimelineTest {
 
     private fun unitFields(f: IntroFrame): List<Pair<String, Float>> = listOf(
         "backdrop" to f.backdrop,
-        "discAlpha" to f.discAlpha,
+        "markAlpha" to f.markAlpha,
         "frameDraw" to f.frameDraw,
         "shine" to f.shine,
         "titleReveal" to f.titleReveal,
@@ -42,7 +42,7 @@ class IntroTimelineTest {
                 assertFalse(v.isNaN(), "NaN в $name на $t мс")
                 assertTrue(v in 0f..1f, "$name = $v вне 0..1 на $t мс")
             }
-            assertTrue(f.discScale in 0.7f..1.08f, "discScale = ${f.discScale} на $t мс")
+            assertTrue(f.markScale in 0.7f..1.08f, "markScale = ${f.markScale} на $t мс")
             t++
         }
     }
@@ -116,7 +116,7 @@ class IntroTimelineTest {
     @Test
     fun `реплики попадают в кадр и успевают договорить`() {
         val brandFrame = IntroScript.frameAt(IntroCue.BRAND.dueAtMs)
-        assertTrue(brandFrame.discAlpha > 0.9f, "Бренд назван, а логотипа ещё не видно")
+        assertTrue(brandFrame.markAlpha > 0.9f, "Бренд назван, а логотипа ещё не видно")
 
         val careFrame = IntroScript.frameAt(IntroCue.CARE.dueAtMs)
         assertTrue(careFrame.captionAlpha > 0.5f, "Подпись произнесена раньше, чем видна")
@@ -157,7 +157,7 @@ class IntroTimelineTest {
         playback.requestSkip(skipAt)
         val after = playback.frameAt(skipAt)
         assertEquals(before.titleReveal, after.titleReveal)
-        assertEquals(before.discScale, after.discScale)
+        assertEquals(before.markScale, after.markScale)
         assertEquals(before.frameDraw, after.frameDraw)
     }
 

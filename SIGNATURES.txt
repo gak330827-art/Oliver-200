@@ -4,7 +4,7 @@
 #
 fe9fa939fcb1fbf02e31dd8c7c4f5012f53e2a872ac45b386e1de8995d3fb1c0  .github/workflows/android.yml
 ca13be7440fe6ad9fce5dda17fd138d282d3b56f591cc8a581909e2072b2200e  .gitignore
-e4558b9f7d0e16dce41b88db276c6e0eecdeb2085a4794c3093828d54eba8231  README.md
+497268fd8b0046df27406c78ab9962ec13cf5f3d72b23c327666226c94ddc8ff  README.md
 2446035e677733b3b38bef39b303202b58af6888574d59efe22da816090d4778  SECURITY.md
 e9a2c88f53adda19d8622d06906c02c3613c558a144904a5cf6c364807458003  app/build.gradle.kts
 d3750dfeaae92274e86d7110095bc24efac76e20439621ed320705dac071edeb  app/proguard-rules.pro
@@ -27,7 +27,7 @@ f1fe6c84b2cc10fc5bb1c33f53b9594526ae1a326631c04ff8e533a841af12e5  app/src/main/k
 e82075ec389c85158914d84d719309b541f9d6c09522718549364d4fbcb477c1  app/src/main/kotlin/com/oliver200/launcher/skin/SkinRenderer.kt
 1ab2a380a0ddbb91694411ed020d3e50e632464021c963e6f2f173254f85926d  app/src/main/kotlin/com/oliver200/launcher/speech/Announcer.kt
 021f574b3c5752a5803bbbd76f18c5d95b7594c7ad09740b80b38707dd33fd6a  app/src/main/kotlin/com/oliver200/launcher/ui/AccountFragment.kt
-dfb96308bb90fcf4c04cfe6aabb9204d1e4874f85cdede4cf4881303f25d18f1  app/src/main/kotlin/com/oliver200/launcher/ui/IntroLogoView.kt
+376c46e1b51fff0520af3c34e5ae56723dafb38df3b602e2b79f8e4c08bb32c3  app/src/main/kotlin/com/oliver200/launcher/ui/IntroLogoView.kt
 a470f09cfe942e4c7975f9f85bf4a4c55751305efa7eed046a9a09ebc50f8ea4  app/src/main/kotlin/com/oliver200/launcher/ui/MainActivity.kt
 241a1e2825e6694501be40b9c2578a2c162f4e087f3cad5e86746a731a8b5ae7  app/src/main/kotlin/com/oliver200/launcher/ui/ShaderAdapter.kt
 04a564aeb7d7b37d1fca52464745b032dc08d5c5f34c18eee8daa940e2ea8c5a  app/src/main/kotlin/com/oliver200/launcher/ui/ShadersFragment.kt
@@ -41,7 +41,7 @@ a979466ede8273e854eae3a286b23ada34ba90222d69371fd0d2ac66e357c6d0  app/src/main/r
 23bd66f9e93c29eb82c7bfec91fef710d84296bf8e15f5f4b9e500e5eaee880e  app/src/main/res/drawable/ic_skin.xml
 0764b1b0048a1e72dbee52eb5056da557314462cf2a996f91520e44d1685278c  app/src/main/res/drawable/ic_versions.xml
 85d52d69bec3b2c13e7891420581242d9671f9cde46205a2e69b2a2f8dc399e3  app/src/main/res/layout/activity_main.xml
-fd923bcc7008074e73b12fc215c5334f627297988f138c6df058101158a7f343  app/src/main/res/layout/activity_splash.xml
+4e6d1a078a934183676d1a6a9124aa543760d79516da302ca9696cbe50262ae1  app/src/main/res/layout/activity_splash.xml
 ed54e52a189d3cdcc47fc7ab991cb7dc9c2b9b0cdb99e795d0d3b8a07799f227  app/src/main/res/layout/fragment_account.xml
 b7f35ec220446dc0cac1e548afbaab9943d8afcf5544941897bc6bd6b10ca3b5  app/src/main/res/layout/fragment_shaders.xml
 14c23a78c2e35f7d8cccb54b06d7aede5411405832514e3de55c36dc754581c7  app/src/main/res/layout/fragment_skin.xml
@@ -52,11 +52,11 @@ bef49c0f2ad08f646266a09dd9c0fa0c40ecb01de65321976f4984cb54aef721  app/src/main/r
 678da6560d837e905ba0c82a15a11918714729de283138721e85ccc1eb1ee9ff  app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 678da6560d837e905ba0c82a15a11918714729de283138721e85ccc1eb1ee9ff  app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 61f23acd78f76755307d12184365cfeacf3ef196fb15d20c0ada4fb5839374df  app/src/main/res/values-en/strings.xml
-4742c7863259304ad466749586440322ff96f805b23fef52eaef3d229eb8eeac  app/src/main/res/values/colors.xml
+58cb9f9442cebed097421a4bb911729200c998827a90ea44936b190d8ad6b01e  app/src/main/res/values/colors.xml
 7b649ee95ef8ee057c3fc192620c129380f6ed54217a278f58a20d49e0b01408  app/src/main/res/values/dimens.xml
 91d13a91a5b38cba126af564dc26f99914e75bbe32fa02f13ef8e2bc67a4771c  app/src/main/res/values/ic_launcher_background.xml
 a09ce2077a0779515f6a2c268f63bf8a77b1d9e9ed4f939711eaf74b0d8293d4  app/src/main/res/values/strings.xml
-ec2482f3b3aeef19313736f8a4de9044cc9133bb25c020be73e595b822d88637  app/src/main/res/values/themes.xml
+c000babbd90e6145bf488e15318e72688ef8006bd5637ef161e3c70b2c914d3a  app/src/main/res/values/themes.xml
 f9dce0e2aa8c5da25bd4753f579e9536f77ef0630d6d26b619a925a9101ba14e  app/src/main/res/xml/backup_rules.xml
 9f25df9e1ebf53e24e59f842749cdbfbdd981469a55a5de9cf730faf6c46e6a1  app/src/main/res/xml/data_extraction_rules.xml
 d04db2360d5fd70c1849630ffce80f110f2f35c9fecc9dca4c562b86de1a6e5f  app/src/main/res/xml/network_security_config.xml
@@ -69,7 +69,7 @@ d04db2360d5fd70c1849630ffce80f110f2f35c9fecc9dca4c562b86de1a6e5f  app/src/main/r
 b8f430c4f005f101e28792a557c23de41b1d847184a5cd66e14c6c8f21b1c292  core/src/main/kotlin/com/oliver200/launcher/core/hash/Hashing.kt
 869fffcac24250b1a6ed000262ceb9588c99a6db915ce56cbab310e8c035f7b4  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroBrand.kt
 5e8eeec481782241ad3f456dd7cd74eeb8f0f64fcc4860873b3b9f73071a8c95  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroBrandSource.kt
-b7c60b92820124a47ba54c1e783eddcaaebb5054b73c9fc6f6a71423839537fa  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroTimeline.kt
+ed1898892a385ffd1351eb29c9756dc884240139d649459317ed6ae2e7a9f0b8  core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroTimeline.kt
 658a84d36ebda826108bc5ca14fcd9cbec25e914ddbd3ba45ce11a14c07b2b23  core/src/main/kotlin/com/oliver200/launcher/core/intro/PlainIntroBrand.kt
 28da1f20a071f87ad781cbb377492e5006ce74c243b04eb40eb0df0dacff0462  core/src/main/kotlin/com/oliver200/launcher/core/intro/SealedIntroBrand.kt
 4999fd24b254687efa727e11a97045fac7a328b990ecf63ae92bc2f2cc54a937  core/src/main/kotlin/com/oliver200/launcher/core/io/SafePath.kt
@@ -88,7 +88,7 @@ e5669ff51d155018ef347daeb3f82215e2459a28b9d3698a1309c519ebfc8571  core/src/main/
 ab21efffe645addd5fad4b2b60fd2eaeda39350479fef146f3e7ecab6a69c584  core/src/test/kotlin/com/oliver200/launcher/core/CryptoTest.kt
 27e02de5b94d5160c227634dccfac057b2c88205f1a42b8f16f5270ca8311e05  core/src/test/kotlin/com/oliver200/launcher/core/HashingTest.kt
 65acc43d7af6e99a78bd133229f051e880430bb99b6aac32b21bfc6f254f5e7e  core/src/test/kotlin/com/oliver200/launcher/core/IntroBrandTest.kt
-ccb5a8a5df44b35fa891b3dc30916d5133933d4af84b7ce67c4ded60cc81a02a  core/src/test/kotlin/com/oliver200/launcher/core/IntroTimelineTest.kt
+546b6853550db383da62e375212e003ebf7c78663d01f5d024985cc45e22c4c5  core/src/test/kotlin/com/oliver200/launcher/core/IntroTimelineTest.kt
 453f5a9b46527855bac2c3506c92a10f43e0a5b184ef12e3ece05ecf2ae440fa  core/src/test/kotlin/com/oliver200/launcher/core/JsonTest.kt
 eb0ffe570cec556a2820b5f03c268621f519a7b27fa7487afefb76b9267ef762  core/src/test/kotlin/com/oliver200/launcher/core/OfflineProfileTest.kt
 55bfc0ef525106a616720971dc69ea6845c79edb74aed0aa532561e2ee88a46f  core/src/test/kotlin/com/oliver200/launcher/core/RulesTest.kt
@@ -106,6 +106,6 @@ b187b4c52e749f5760afdd6fadc31b2a98ad35fb249bf0dff03b72650f320409  gradlew
 1d297e00bd21de3ace22b4d7f2de1f9dfa858883d66bbf7c1ccbecccec8f4f3b  gradlew.bat
 c2aa8ba074a37819c16bdf194baf71b44ed6bfa82e9580ac21e3a20effec1658  settings.gradle.kts
 85ba9cad93696168ffd96742e3071fae64bd05fb7ca86d4f02bc87d13ab0bb0f  tools/SealBrand.java
-8f8e2fe6fcf47e4fe883b1647250b212264f1604518f15bc782b2020adfe2462  tools/__pycache__/render_intro.cpython-311.pyc
-7e188536a7465670d4bd617e9433c2409f7bca12808da325114d4245ae76e12c  tools/render_intro.py
+91918628b6cb869f31ab21f09f80f9fc8829d37e5f2be471cebdb59826b66889  tools/__pycache__/render_intro.cpython-311.pyc
+d37ba4e721c6e76f57ff0a7b90d34fec229a44baa939aac36fe750c74c0c4170  tools/render_intro.py
 dd5d57187f83ab15c6a811bc604f6a282f6e5a080222960f225148cc4b2569b8  tools/sign.sh

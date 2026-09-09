@@ -12,9 +12,10 @@
     <color name="redstone">#FFCF4436</color>
     <color name="gold">#FFE0B341</color>
 
-    <!-- Заставка: знак чёрным по белому диску, как на оригинальном аватаре. -->
-    <color name="intro_disc">#FFFFFFFF</color>
+    <!-- Заставка: знак чёрным по белому листу во весь экран, как в оригинале. -->
+    <color name="intro_paper">#FFFFFFFF</color>
+    <color name="intro_paper_edge">#FFECEEF0</color>
     <color name="intro_ink">#FF07090A</color>
-    <color name="intro_backdrop_inner">#FF16191C</color>
-    <color name="intro_backdrop_outer">#FF000000</color>
+    <color name="intro_ink_soft">#FF14181C</color>
+    <color name="intro_ink_faint">#FF767C82</color>
 </resources>

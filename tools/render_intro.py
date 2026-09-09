@@ -33,6 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TIMELINE_KT = os.path.join(ROOT, "core/src/main/kotlin/com/oliver200/launcher/core/intro/IntroTimeline.kt")
 LOGO_KT = os.path.join(ROOT, "app/src/main/kotlin/com/oliver200/launcher/ui/IntroLogoView.kt")
 BRAND_KT = os.path.join(ROOT, "core/src/main/kotlin/com/oliver200/launcher/core/intro/PlainIntroBrand.kt")
+COLORS_XML = os.path.join(ROOT, "app/src/main/res/values/colors.xml")
 
 FONT_BLACK = ["/usr/share/fonts/truetype/roboto/unhinted/RobotoTTF/Roboto-Black.ttf",
               "/usr/share/fonts/truetype/roboto/unhinted/Roboto-Black.ttf"]
@@ -41,13 +42,15 @@ FONT_MEDIUM = ["/usr/share/fonts/truetype/roboto/unhinted/RobotoTTF/Roboto-Mediu
 FONT_REGULAR = ["/usr/share/fonts/truetype/roboto/unhinted/RobotoTTF/Roboto-Regular.ttf",
                 "/usr/share/fonts/truetype/roboto/unhinted/Roboto-Regular.ttf"]
 
-# Цвета из app/src/main/res/values/colors.xml
-INK = (7, 9, 10)
-DISC = (255, 255, 255)
-BACKDROP_INNER = (22, 25, 28)
-BACKDROP_OUTER = (0, 0, 0)
-TEXT_PRIMARY = (242, 244, 245)
-TEXT_SECONDARY = (169, 178, 185)
+def android_colors(path):
+    """Палитра берётся из ресурсов приложения — своих цветов у ролика нет."""
+    out = {}
+    for m in re.finditer(r'<color name="(\w+)">#([0-9A-Fa-f]{6,8})</color>', open(path, encoding="utf-8").read()):
+        v = m.group(2)
+        if len(v) == 8:
+            v = v[2:]
+        out[m.group(1)] = tuple(int(v[i:i + 2], 16) for i in (0, 2, 4))
+    return out
 
 
 def font_path(candidates):
@@ -132,15 +135,15 @@ class Script:
     def at(self, t):
         c = self.c
         t = max(0, t)
-        disc = self.p(t, c["DISC_AT"], c["DISC_MS"])
+        disc = self.p(t, c["MARK_AT"], c["MARK_MS"])
         row = self.p(t, c["ROW_AT"], c["ROW_MS"])
         cap = self.p(t, c["CAPTION_AT"], c["CAPTION_MS"])
         outro = self.p(t, c["OUTRO_AT"], c["OUTRO_MS"])
         return {
             "t": t,
             "backdrop": out_cubic(self.p(t, c["BACKDROP_AT"], c["BACKDROP_MS"])),
-            "discAlpha": out_cubic(disc * 1.6),
-            "discScale": c["DISC_SCALE_FROM"] + (1 - c["DISC_SCALE_FROM"]) * out_back(disc),
+            "markAlpha": out_cubic(disc * 1.6),
+            "markScale": c["MARK_SCALE_FROM"] + (1 - c["MARK_SCALE_FROM"]) * out_back(disc),
             "frameDraw": in_out_cubic(self.p(t, c["FRAME_AT"], c["FRAME_MS"])),
             "shine": in_out_cubic(self.p(t, c["SHINE_AT"], c["SHINE_MS"])),
             "titleReveal": out_cubic(self.p(t, c["TITLE_AT"], c["TITLE_MS"])),
@@ -155,12 +158,14 @@ class Script:
 # ───────────────────────────────── отрисовка ───────────────────────────────
 
 class Renderer:
-    def __init__(self, w, h, geom, brand, script, show_skip, skip_label):
+    def __init__(self, w, h, geom, brand, script, show_skip, skip_label, colors):
         self.w, self.h, self.g, self.brand = w, h, geom, brand
+        self.colors = colors
+        self.ink = colors["intro_ink"]
+        self.paper_ink = colors["intro_paper"]
         self.script = script
         self.show_skip = show_skip
         self.skip_label = skip_label
-        self.black = Image.new("RGB", (w, h), BACKDROP_OUTER)
         self._layout()
         self._prerender()
 
@@ -168,9 +173,9 @@ class Renderer:
     def _layout(self):
         g, w, h = self.g, self.w, self.h
         self.cx, self.cy = w / 2.0, h * 0.42
-        self.radius = min(w * 0.40, h * 0.30)
-        fw = self.radius * g["FRAME_W_PER_R"]
+        fw = min(w * g["MARK_W_PER_W"], h * g["MARK_W_PER_H"])
         fh = fw / g["FRAME_ASPECT"]
+        self.frame_w = fw
         self.frame_rect = (self.cx - fw / 2, self.cy - fh / 2, self.cx + fw / 2, self.cy + fh / 2)
         self.stroke = fh * g["STROKE_PER_H"]
         pad = fh * g["PAD_PER_H"]
@@ -265,27 +270,13 @@ class Renderer:
         yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
         dist = np.sqrt((xx - self.cx) ** 2 + (yy - self.cy) ** 2)
 
-        # Фон-виньетка: RadialGradient(inner → outer) радиусом max(w,h)*0.85.
-        k = np.clip(dist / (max(w, h) * 0.85), 0, 1)[..., None]
-        inner = np.array(BACKDROP_INNER, np.float32)
-        outer = np.array(BACKDROP_OUTER, np.float32)
-        self.backdrop = Image.fromarray((inner * (1 - k) + outer * k).astype(np.uint8), "RGB")
-
-        # Ореол вокруг диска — параметры те же, что в IntroLogoView.
-        gr = self.radius * self.g["GLOW_R_PER_R"]
-        stop = self.g["GLOW_INNER_STOP"]
-        t = np.clip((dist / gr - stop) / (1 - stop), 0, 1)
-        glow_a = np.where(dist <= gr, (1 - t) * (255 * self.g["GLOW_ALPHA"]), 0).astype(np.uint8)
-        glow = np.zeros((h, w, 4), np.uint8)
-        glow[..., :3] = 255
-        glow[..., 3] = glow_a
-        self.glow = Image.fromarray(glow, "RGBA")
-
-        self.disc_mask = (dist <= self.radius)
-        disc = np.zeros((h, w, 4), np.uint8)
-        disc[..., :3] = np.array(DISC, np.uint8)
-        disc[..., 3] = np.where(self.disc_mask, 255, 0)
-        self.disc = Image.fromarray(disc, "RGBA")
+        # Лист: белый в центре, чуть темнее к краям — как в IntroLogoView.
+        k = np.clip(dist / (max(w, h) * self.g["PAPER_VIGNETTE_R"]), 0, 1)[..., None]
+        centre = np.array(self.colors["intro_paper"], np.float32)
+        edge = np.array(self.colors["intro_paper_edge"], np.float32)
+        self.paper = Image.fromarray((centre * (1 - k) + edge * k).astype(np.uint8), "RGB")
+        self.paper_flat = Image.new("RGB", (w, h), self.colors["intro_paper"])
+        self.black = Image.new("RGB", (w, h), (0, 0, 0))
         self.xx = xx
 
     @staticmethod
@@ -313,7 +304,7 @@ class Renderer:
             xe, ye = x0 + (x1 - x0) * f, y0 + (y1 - y0) * f
             rx = sorted([x0, xe])
             ry = sorted([y0, ye])
-            d.rectangle([rx[0] - s / 2, ry[0] - s / 2, rx[1] + s / 2, ry[1] + s / 2], fill=INK + (255,))
+            d.rectangle([rx[0] - s / 2, ry[0] - s / 2, rx[1] + s / 2, ry[1] + s / 2], fill=self.ink + (255,))
             left -= seg
         return layer
 
@@ -332,7 +323,7 @@ class Renderer:
                 local = clamp01((reveal - start) / window)
                 if local <= 0:
                     continue
-                d.text((x0 + xs[i], base), ch, font=font, fill=INK + (int(255 * local),), anchor="ls")
+                d.text((x0 + xs[i], base), ch, font=font, fill=self.ink + (int(255 * local),), anchor="ls")
         return layer
 
     def _row_layer(self, rise):
@@ -340,34 +331,38 @@ class Renderer:
         d = ImageDraw.Draw(layer)
         shift = rise * self.row_h * 0.8
         x0, y0, x1, y1 = self.badge_box
-        d.rectangle([x0, y0 + shift, x1, y1 + shift], fill=INK + (255,))
+        d.rectangle([x0, y0 + shift, x1, y1 + shift], fill=self.ink + (255,))
         d.text((self.badge_xy[0], self.badge_xy[1] + shift), self.brand["badge"],
-               font=self.font_badge, fill=DISC + (255,), anchor="ls")
+               font=self.font_badge, fill=self.paper_ink + (255,), anchor="ls")
         d.text((self.plat_xy[0], self.plat_xy[1] + shift), self.brand["platform"],
-               font=self.font_plat, fill=INK + (255,), anchor="ls")
+               font=self.font_plat, fill=self.ink + (255,), anchor="ls")
         return layer
 
     def _shine_layer(self, progress, alpha):
-        travel = self.radius * 2 + self.radius * self.g["SHINE_W_PER_R"]
-        band = self.radius * self.g["SHINE_W_PER_R"]
-        start = self.cx - self.radius - band + travel * progress
+        band = self.frame_w * self.g["SHINE_W_PER_MARK"]
+        travel = self.frame_w + band
+        start = self.frame_rect[0] - band + travel * progress
         centre = start + band / 2
         prof = np.clip(1 - np.abs((self.xx - centre) / (band / 2)), 0, 1)
-        a = (prof * 150 * alpha * self.disc_mask).astype(np.uint8)
+        inside = np.zeros((self.h, self.w), np.float32)
+        t0, b0 = int(self.frame_rect[1]), int(self.frame_rect[3])
+        inside[max(0, t0):min(self.h, b0), :] = 1.0
         arr = np.zeros((self.h, self.w, 4), np.uint8)
         arr[..., :3] = 255
-        arr[..., 3] = a
+        arr[..., 3] = (prof * inside * 150 * alpha).astype(np.uint8)
         return Image.fromarray(arr, "RGBA")
 
     def frame(self, t_ms):
         f = self.script.at(t_ms)
         master = f["master"]
-        img = Image.blend(self.black, self.backdrop, clamp01(f["backdrop"] * master)).convert("RGBA")
-        disc_alpha = f["discAlpha"] * master
-        if disc_alpha > 0:
+
+        # Лист гаснет вместе со сценой, поверх поднимается чёрная вуаль —
+        # ровно как в IntroLogoView.onDraw.
+        img = Image.blend(self.paper_flat, self.paper, clamp01(f["backdrop"] * master)).convert("RGBA")
+
+        mark_alpha = f["markAlpha"] * master
+        if mark_alpha > 0:
             mark = Image.new("RGBA", (self.w, self.h), (0, 0, 0, 0))
-            mark = Image.alpha_composite(mark, self.glow)
-            mark = Image.alpha_composite(mark, self.disc)
             if f["frameDraw"] > 0:
                 mark = Image.alpha_composite(mark, self._stroke_layer(f["frameDraw"]))
             if f["titleReveal"] > 0:
@@ -379,13 +374,13 @@ class Renderer:
             if 0 < f["shine"] < 1:
                 mark = Image.alpha_composite(mark, self._shine_layer(f["shine"], 1.0))
 
-            s = f["discScale"]
+            s = f["markScale"]
             if abs(s - 1) > 1e-3:
                 mark = mark.transform(
                     (self.w, self.h), Image.AFFINE,
                     (1 / s, 0, self.cx - self.cx / s, 0, 1 / s, self.cy - self.cy / s),
                     resample=Image.BICUBIC)
-            mark = self._alpha(mark, clamp01(disc_alpha))
+            mark = self._alpha(mark, clamp01(mark_alpha))
             if mark is not None:
                 img = Image.alpha_composite(img, mark)
 
@@ -394,9 +389,10 @@ class Renderer:
             layer = Image.new("RGBA", (self.w, self.h), (0, 0, 0, 0))
             d = ImageDraw.Draw(layer)
             y = self.caption_y + f["captionRise"] * self.caption_rise
+            ink = self.colors["intro_ink_soft"]
             for i, ch in enumerate(self.brand["care"]):
                 d.text((self.caption_x0 + self.caption_xs[i], y), ch,
-                       font=self.font_caption, fill=TEXT_PRIMARY + (int(255 * cap_alpha),), anchor="ls")
+                       font=self.font_caption, fill=ink + (int(255 * cap_alpha),), anchor="ls")
             img = Image.alpha_composite(img, layer)
 
         if self.show_skip:
@@ -404,10 +400,14 @@ class Renderer:
             if appear > 0:
                 layer = Image.new("RGBA", (self.w, self.h), (0, 0, 0, 0))
                 ImageDraw.Draw(layer).text(self.skip_xy, self.skip_label, font=self.font_skip,
-                                           fill=TEXT_SECONDARY + (int(255 * appear),))
+                                           fill=self.colors["intro_ink_faint"] + (int(255 * appear),))
                 img = Image.alpha_composite(img, layer)
 
-        return img.convert("RGB")
+        out = img.convert("RGB")
+        veil = 1 - master
+        if veil > 0:
+            out = Image.blend(out, self.black, clamp01(veil))
+        return out
 
 
 def main():
@@ -437,7 +437,8 @@ def main():
                                             brand["badge"], brand["platform"], brand["care"]))
 
     renderer = Renderer(args.width, args.height, geom, brand, script,
-                        show_skip=not args.clean, skip_label=args.skip_label)
+                        show_skip=not args.clean, skip_label=args.skip_label,
+                        colors=android_colors(COLORS_XML))
 
     frames = int(round(script.total / 1000.0 * args.fps))
     tmp = tempfile.mkdtemp(prefix="oliver-intro-")

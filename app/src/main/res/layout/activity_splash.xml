@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Oliver-200 · заставка. Подпись: OLIVER-200
+  Экран белый целиком: знак чёрным по листу, как в оригинале.
   Знак рисует IntroLogoView, подпись и «Пропустить» — обычные TextView:
   их читает TalkBack, а увеличенный системный шрифт им не мешает.
 -->
@@ -9,7 +10,7 @@
     android:id="@+id/intro_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/intro_backdrop_outer"
+    android:background="@color/intro_paper"
     android:clickable="true"
     android:focusable="true"
     android:contentDescription="@string/intro_skip">
@@ -31,7 +32,7 @@
         android:fontFamily="sans-serif-medium"
         android:gravity="center"
         android:letterSpacing="0.04"
-        android:textColor="@color/text_primary"
+        android:textColor="@color/intro_ink_soft"
         android:textSize="19sp"
         tools:text="Заботимся о вас" />
 
@@ -49,6 +50,6 @@
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:text="@string/intro_skip"
-        android:textColor="@color/text_secondary"
+        android:textColor="@color/intro_ink_faint"
         android:textSize="14sp" />
 </FrameLayout>

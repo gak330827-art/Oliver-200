@@ -18,13 +18,15 @@
     </style>
 
     <!--
-      Тема заставки: чёрный фон системных панелей, чтобы диск логотипа
-      не оказался в рамке из другого цвета, и windowBackground того же
-      цвета — иначе между запуском процесса и первым кадром мелькает тема.
+      Тема заставки: белый лист во весь экран, включая системные панели.
+      windowBackground тоже белый — иначе между запуском процесса и первым
+      кадром мелькает тёмная тема приложения. Значки статус-бара при этом
+      обязаны стать тёмными, иначе на белом их не видно.
     -->
     <style name="Theme.Oliver200.Intro" parent="Theme.Oliver200">
-        <item name="android:windowBackground">@color/intro_backdrop_outer</item>
-        <item name="android:statusBarColor">@color/intro_backdrop_outer</item>
-        <item name="android:navigationBarColor">@color/intro_backdrop_outer</item>
+        <item name="android:windowBackground">@color/intro_paper</item>
+        <item name="android:statusBarColor">@color/intro_paper</item>
+        <item name="android:navigationBarColor">@color/intro_paper</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
     </style>
 </resources>

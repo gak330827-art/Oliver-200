@@ -3,7 +3,7 @@
  *  Oliver-200 · Minecraft Launcher for Android
  *  Файл       : core/intro/IntroTimeline.kt
  *  Назначение : раскадровка заставки Animal Company · RU Steam Community —
- *               когда проявляется фон, когда вылетает белый диск логотипа,
+ *               когда проявляется фон, когда вылетает белый лист со знаком,
  *               когда обводится рамка и набираются буквы, когда всходит
  *               подпись «Заботимся о вас» и где вступает диктор.
  *
@@ -32,7 +32,7 @@
 package com.oliver200.launcher.core.intro
 
 /** Крупные фазы ролика. Нужны для отладки и тестов, рисование ими не управляется. */
-enum class IntroPhase { OPENING, DISC, TITLE, ROW, HOLD, OUTRO, DONE }
+enum class IntroPhase { OPENING, MARK, TITLE, ROW, HOLD, OUTRO, DONE }
 
 /**
  * Реплики диктора и их место на ленте.
@@ -47,7 +47,7 @@ enum class IntroCue(val dueAtMs: Long) {
 }
 
 /**
- * Готовый кадр. Все поля — множители 0..1, кроме [discScale] (масштаб)
+ * Готовый кадр. Все поля — множители 0..1, кроме [markScale] (масштаб)
  * и [elapsedMs].
  *
  * [master] — общая непрозрачность сцены: и финальное затемнение, и быстрый
@@ -60,8 +60,8 @@ data class IntroFrame(
     /** Проявление фона-виньетки. */
     val backdrop: Float,
     /** Белый диск аватара: непрозрачность и масштаб с лёгкой отдачей. */
-    val discAlpha: Float,
-    val discScale: Float,
+    val markAlpha: Float,
+    val markScale: Float,
     /** Доля обведённой рамки логотипа: 0 — рамки нет, 1 — обведена целиком. */
     val frameDraw: Float,
     /** Положение блика, скользящего по логотипу. */
@@ -123,7 +123,7 @@ object Ease {
  * Сама лента. Все времена — миллисекунды от начала ролика.
  *
  *   0 ─── 420 ──── 1140 ─── 1900 ──── 2260 ──── 3220 ──────── 5900 ─── 6500
- *   │ фон  │ диск   │ рамка  │ буквы   │ RU·STEAM │ «Заботимся» │ пауза │ уход
+ *   │ лист │ знак   │ рамка  │ буквы   │ RU·STEAM │ «Заботимся» │ пауза │ уход
  *                            ▲ диктор: 1050        ▲ диктор: 2760
  */
 object IntroScript {
@@ -131,9 +131,9 @@ object IntroScript {
     const val BACKDROP_AT = 0L
     const val BACKDROP_MS = 420L
 
-    const val DISC_AT = 200L
-    const val DISC_MS = 780L
-    const val DISC_SCALE_FROM = 0.72f
+    const val MARK_AT = 200L
+    const val MARK_MS = 780L
+    const val MARK_SCALE_FROM = 0.72f
 
     /** Рамка логотипа обводится пером — как будто её только что нарисовали. */
     const val FRAME_AT = 620L
@@ -172,13 +172,13 @@ object IntroScript {
     init {
         // Инварианты раскадровки. Если кто-то поправит одну константу и
         // сломает порядок — сборка упадёт здесь, а не «иногда на телефоне».
-        require(BACKDROP_MS > 0 && DISC_MS > 0 && FRAME_MS > 0 && SHINE_MS > 0) {
+        require(BACKDROP_MS > 0 && MARK_MS > 0 && FRAME_MS > 0 && SHINE_MS > 0) {
             "Длительности сегментов должны быть положительными"
         }
         require(TITLE_MS > 0 && ROW_MS > 0 && CAPTION_MS > 0 && OUTRO_MS > 0) {
             "Длительности сегментов должны быть положительными"
         }
-        require(DISC_AT < FRAME_AT && FRAME_AT < TITLE_AT && TITLE_AT < ROW_AT) {
+        require(MARK_AT < FRAME_AT && FRAME_AT < TITLE_AT && TITLE_AT < ROW_AT) {
             "Порядок сборки логотипа нарушен: диск → рамка → буквы → строка"
         }
         require(ROW_AT < CAPTION_AT) { "Подпись не может опережать логотип" }
@@ -208,7 +208,7 @@ object IntroScript {
     fun frameAt(elapsedMs: Long): IntroFrame {
         val t = if (elapsedMs < 0L) 0L else elapsedMs
 
-        val discP = p(t, DISC_AT, DISC_MS)
+        val markP = p(t, MARK_AT, MARK_MS)
         val rowP = p(t, ROW_AT, ROW_MS)
         val capP = p(t, CAPTION_AT, CAPTION_MS)
         val outroP = p(t, OUTRO_AT, OUTRO_MS)
@@ -219,7 +219,7 @@ object IntroScript {
             t >= CAPTION_AT + CAPTION_MS -> IntroPhase.HOLD
             t >= ROW_AT -> IntroPhase.ROW
             t >= TITLE_AT -> IntroPhase.TITLE
-            t >= DISC_AT -> IntroPhase.DISC
+            t >= MARK_AT -> IntroPhase.MARK
             else -> IntroPhase.OPENING
         }
 
@@ -229,8 +229,8 @@ object IntroScript {
             backdrop = Ease.outCubic(p(t, BACKDROP_AT, BACKDROP_MS)),
             // Непрозрачность набирается быстрее геометрии: иначе диск
             // заметно «проявляется уже большим».
-            discAlpha = Ease.outCubic(discP * 1.6f),
-            discScale = DISC_SCALE_FROM + (1f - DISC_SCALE_FROM) * Ease.outBack(discP),
+            markAlpha = Ease.outCubic(markP * 1.6f),
+            markScale = MARK_SCALE_FROM + (1f - MARK_SCALE_FROM) * Ease.outBack(markP),
             frameDraw = Ease.inOutCubic(p(t, FRAME_AT, FRAME_MS)),
             shine = Ease.inOutCubic(p(t, SHINE_AT, SHINE_MS)),
             titleReveal = Ease.outCubic(p(t, TITLE_AT, TITLE_MS)),
