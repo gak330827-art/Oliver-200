@@ -8,6 +8,12 @@
     <string name="tab_shaders">Шейдеры</string>
     <string name="tab_account">Аккаунт</string>
 
+    <!-- Заставка. Тексты самого знака сюда не кладутся намеренно:
+         они лежат в шифрованном контейнере, см. SealedIntroBrand.kt -->
+    <string name="intro_skip">Пропустить</string>
+    <string name="intro_a11y">Заставка приложения</string>
+    <string name="intro_voice">Голос диктора на заставке</string>
+
     <!-- Версии -->
     <string name="versions_title">Выбор версии</string>
     <string name="versions_search">Поиск версии</string>

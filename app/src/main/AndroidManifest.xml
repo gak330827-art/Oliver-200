@@ -4,7 +4,8 @@
    Oliver-200 · Minecraft Launcher for Android
    Файл       : AndroidManifest.xml
    Безопасность:
-       · единственный exported-компонент — стартовое активити;
+       · единственный exported-компонент — заставка (SplashActivity);
+         главный экран запускается только изнутри приложения;
        · allowBackup=false: облачный бэкап вынес бы зашифрованное хранилище
          с устройства, где ключ Keystore остался бы недоступен, но сам файл
          утёк бы наружу;
@@ -55,17 +56,33 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true">
 
+        <!--
+          Точка входа — заставка. Она единственная exported: снаружи
+          приложение можно только запустить с начала, и никак иначе.
+        -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.SplashActivity"
             android:exported="true"
+            android:theme="@style/Theme.Oliver200.Intro"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|density"
-            android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize">
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Главный экран больше НЕ exported: раньше любое приложение на
+          устройстве могло открыть его своим интентом в обход заставки и
+          инициализации. Пользы в этом не было, поверхность атаки была.
+        -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|density"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- Резервных провайдеров и сервисов нет намеренно: нечего экспортировать. -->
     </application>

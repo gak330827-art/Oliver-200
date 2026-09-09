@@ -16,4 +16,15 @@
         <item name="android:navigationBarColor">@color/stone</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
     </style>
+
+    <!--
+      Тема заставки: чёрный фон системных панелей, чтобы диск логотипа
+      не оказался в рамке из другого цвета, и windowBackground того же
+      цвета — иначе между запуском процесса и первым кадром мелькает тема.
+    -->
+    <style name="Theme.Oliver200.Intro" parent="Theme.Oliver200">
+        <item name="android:windowBackground">@color/intro_backdrop_outer</item>
+        <item name="android:statusBarColor">@color/intro_backdrop_outer</item>
+        <item name="android:navigationBarColor">@color/intro_backdrop_outer</item>
+    </style>
 </resources>

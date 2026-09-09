@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Oliver-200 · заставка. Подпись: OLIVER-200
+  Знак рисует IntroLogoView, подпись и «Пропустить» — обычные TextView:
+  их читает TalkBack, а увеличенный системный шрифт им не мешает.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/intro_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/intro_backdrop_outer"
+    android:clickable="true"
+    android:focusable="true"
+    android:contentDescription="@string/intro_skip">
+
+    <com.oliver200.launcher.ui.IntroLogoView
+        android:id="@+id/intro_logo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/intro_caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="@dimen/intro_caption_margin"
+        android:alpha="0"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:letterSpacing="0.04"
+        android:textColor="@color/text_primary"
+        android:textSize="19sp"
+        tools:text="Заботимся о вас" />
+
+    <TextView
+        android:id="@+id/intro_skip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:alpha="0"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:gravity="center"
+        android:minWidth="48dp"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:text="@string/intro_skip"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp" />
+</FrameLayout>

@@ -11,4 +11,10 @@
     <color name="text_secondary">#FFA9B2B9</color>
     <color name="redstone">#FFCF4436</color>
     <color name="gold">#FFE0B341</color>
+
+    <!-- Заставка: знак чёрным по белому диску, как на оригинальном аватаре. -->
+    <color name="intro_disc">#FFFFFFFF</color>
+    <color name="intro_ink">#FF07090A</color>
+    <color name="intro_backdrop_inner">#FF16191C</color>
+    <color name="intro_backdrop_outer">#FF000000</color>
 </resources>

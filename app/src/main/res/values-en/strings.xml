@@ -8,6 +8,11 @@
     <string name="tab_shaders">Shaders</string>
     <string name="tab_account">Account</string>
 
+    <!-- Splash screen. Wordmark texts live in the sealed container on purpose. -->
+    <string name="intro_skip">Skip</string>
+    <string name="intro_a11y">App splash screen</string>
+    <string name="intro_voice">Voice-over on the splash screen</string>
+
     <string name="versions_title">Choose a version</string>
     <string name="versions_search">Search version</string>
     <string name="versions_filter_release">Releases</string>

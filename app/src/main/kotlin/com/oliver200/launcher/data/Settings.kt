@@ -63,6 +63,17 @@ class Settings(context: Context) {
             prefs.edit().putString(KEY_PROFILE_MODE, value.name).apply()
         }
 
+    /**
+     * Голос диктора на заставке. По умолчанию включён, но выключается
+     * одним флагом — и тогда синтезатор речи вообще не создаётся:
+     * ни одного обращения к чужому TTS-движку.
+     */
+    var introVoice: Boolean
+        get() = prefs.getBoolean(KEY_INTRO_VOICE, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_INTRO_VOICE, value).apply()
+        }
+
     var channels: Set<ReleaseChannel>
         get() {
             val raw = prefs.getStringSet(KEY_CHANNELS, null)
@@ -82,6 +93,7 @@ class Settings(context: Context) {
         const val KEY_NICK = "offline_nick"
         const val KEY_CHANNELS = "channels"
         const val KEY_PROFILE_MODE = "profile_mode"
+        const val KEY_INTRO_VOICE = "intro_voice"
     }
 }
 

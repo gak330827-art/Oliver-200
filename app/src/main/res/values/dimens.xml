@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oliver-200 · размеры. Подпись: OLIVER-200 -->
+<resources>
+    <!-- На сколько подпись «Заботимся о вас» всходит снизу. -->
+    <dimen name="intro_caption_rise">22dp</dimen>
+    <!-- Отступ подписи от низа экрана. -->
+    <dimen name="intro_caption_margin">88dp</dimen>
+</resources>
