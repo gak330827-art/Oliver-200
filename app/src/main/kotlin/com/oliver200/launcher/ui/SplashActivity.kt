@@ -19,8 +19,7 @@
  *        перестала быть точкой входа снаружи (см. AndroidManifest);
  *      · ролик один раз за запуск процесса. Он не средство «подождать»,
  *        и повторно на глаза не лезет;
- *      · тап в любом месте и кнопка «Пропустить» обрывают всё, включая
- *        диктора;
+ *      · тап в любом месте экрана обрывает всё, включая диктора;
  *      · при выключенных системных анимациях (спец. возможности,
  *        экономия батареи) заставка не показывается вовсе.
  *
@@ -42,7 +41,6 @@ import com.oliver200.launcher.R
 import com.oliver200.launcher.core.intro.IntroBrand
 import com.oliver200.launcher.core.intro.IntroBrandException
 import com.oliver200.launcher.core.intro.IntroBrandSource
-import com.oliver200.launcher.core.intro.IntroFrame
 import com.oliver200.launcher.core.intro.IntroPlayback
 import com.oliver200.launcher.speech.Announcer
 
@@ -50,7 +48,6 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
 
     private lateinit var logo: IntroLogoView
     private lateinit var caption: TextView
-    private lateinit var skip: TextView
 
     private val playback = IntroPlayback()
     private val choreographer: Choreographer by lazy { Choreographer.getInstance() }
@@ -73,7 +70,6 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
 
         logo = findViewById(R.id.intro_logo)
         caption = findViewById(R.id.intro_caption)
-        skip = findViewById(R.id.intro_skip)
         captionRisePx = resources.getDimension(R.dimen.intro_caption_rise)
 
         // Тексты знака живут в шифрованном контейнере (SealedIntroBrand).
@@ -101,9 +97,11 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
 
         announcer = Announcer(this, app.settings.introVoice)
 
-        val skipNow = View.OnClickListener { playback.requestSkip(elapsedMs) }
-        skip.setOnClickListener(skipNow)
-        findViewById<View>(R.id.intro_root).setOnClickListener(skipNow)
+        // Пропуск — тап в любом месте экрана. Отдельной кнопки нет: она
+        // отвлекала от знака, а обрывать ролик всё равно можно всегда.
+        findViewById<View>(R.id.intro_root).setOnClickListener {
+            playback.requestSkip(elapsedMs)
+        }
     }
 
     override fun onResume() {
@@ -144,7 +142,6 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
         logo.setFrame(f)
         caption.alpha = clamp01(f.captionAlpha * f.master)
         caption.translationY = f.captionRise * captionRisePx
-        skip.alpha = skipAlpha(f)
 
         val texts = brand
         if (texts != null) {
@@ -158,12 +155,6 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
         } else {
             choreographer.postFrameCallback(frameCallback)
         }
-    }
-
-    /** «Пропустить» появляется не сразу: иначе она перебивает сам знак. */
-    private fun skipAlpha(f: IntroFrame): Float {
-        val appear = (f.elapsedMs - SKIP_VISIBLE_AT_MS).toFloat() / SKIP_FADE_MS
-        return clamp01(appear) * f.master
     }
 
     private fun goToMain() {
@@ -202,7 +193,5 @@ class SplashActivity : AppCompatActivity(R.layout.activity_splash) {
 
     private companion object {
         const val NANOS_PER_MS = 1_000_000L
-        const val SKIP_VISIBLE_AT_MS = 700L
-        const val SKIP_FADE_MS = 400f
     }
 }

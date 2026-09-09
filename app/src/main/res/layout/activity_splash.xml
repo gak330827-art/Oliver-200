@@ -2,8 +2,11 @@
 <!--
   Oliver-200 · заставка. Подпись: OLIVER-200
   Экран белый целиком: знак чёрным по листу, как в оригинале.
-  Знак рисует IntroLogoView, подпись и «Пропустить» — обычные TextView:
-  их читает TalkBack, а увеличенный системный шрифт им не мешает.
+  Кнопки «Пропустить» нет намеренно: она мешала знаку, а пропуск никуда
+  не делся — тап в любом месте экрана обрывает ролик. Для TalkBack это
+  сказано в contentDescription корня.
+  Знак рисует IntroLogoView, подпись — обычный TextView: его читает
+  TalkBack, а увеличенный системный шрифт ему не мешает.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -13,7 +16,7 @@
     android:background="@color/intro_paper"
     android:clickable="true"
     android:focusable="true"
-    android:contentDescription="@string/intro_skip">
+    android:contentDescription="@string/intro_tap_to_skip">
 
     <com.oliver200.launcher.ui.IntroLogoView
         android:id="@+id/intro_logo"
@@ -36,20 +39,4 @@
         android:textSize="19sp"
         tools:text="Заботимся о вас" />
 
-    <TextView
-        android:id="@+id/intro_skip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:layout_margin="8dp"
-        android:alpha="0"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:gravity="center"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:text="@string/intro_skip"
-        android:textColor="@color/intro_ink_faint"
-        android:textSize="14sp" />
 </FrameLayout>

@@ -13,7 +13,7 @@
 #
 #  Запуск:
 #      python3 tools/render_intro.py --out intro.mp4 --audio voice.mp3
-#      python3 tools/render_intro.py --out intro.mp4 --clean   # без «Пропустить»
+#      python3 tools/render_intro.py --out intro.mp4 --gif intro.gif
 #
 #  Нужны: pillow, numpy, ffmpeg, шрифт Roboto (fonts-roboto-unhinted).
 #  Подпись: OLIVER-200 · см. SIGNATURES.txt
@@ -39,8 +39,6 @@ FONT_BLACK = ["/usr/share/fonts/truetype/roboto/unhinted/RobotoTTF/Roboto-Black.
               "/usr/share/fonts/truetype/roboto/unhinted/Roboto-Black.ttf"]
 FONT_MEDIUM = ["/usr/share/fonts/truetype/roboto/unhinted/RobotoTTF/Roboto-Medium.ttf",
                "/usr/share/fonts/truetype/roboto/unhinted/Roboto-Medium.ttf"]
-FONT_REGULAR = ["/usr/share/fonts/truetype/roboto/unhinted/RobotoTTF/Roboto-Regular.ttf",
-                "/usr/share/fonts/truetype/roboto/unhinted/Roboto-Regular.ttf"]
 
 def android_colors(path):
     """Палитра берётся из ресурсов приложения — своих цветов у ролика нет."""
@@ -158,14 +156,12 @@ class Script:
 # ───────────────────────────────── отрисовка ───────────────────────────────
 
 class Renderer:
-    def __init__(self, w, h, geom, brand, script, show_skip, skip_label, colors):
+    def __init__(self, w, h, geom, brand, script, colors):
         self.w, self.h, self.g, self.brand = w, h, geom, brand
         self.colors = colors
         self.ink = colors["intro_ink"]
         self.paper_ink = colors["intro_paper"]
         self.script = script
-        self.show_skip = show_skip
-        self.skip_label = skip_label
         self._layout()
         self._prerender()
 
@@ -245,8 +241,6 @@ class Renderer:
         self.caption_x0 = self.cx - cap_w / 2
         self.caption_y = h - 88 * dp
         self.caption_rise = 22 * dp
-        self.font_skip = ImageFont.truetype(font_path(FONT_REGULAR), int(round(14 * dp)))
-        self.skip_xy = (w - 24 * dp - self.font_skip.getlength(self.skip_label), 40 * dp)
 
     def _fit(self, path, text, target, tracking_em):
         probe = ImageFont.truetype(path, 100)
@@ -395,14 +389,6 @@ class Renderer:
                        font=self.font_caption, fill=ink + (int(255 * cap_alpha),), anchor="ls")
             img = Image.alpha_composite(img, layer)
 
-        if self.show_skip:
-            appear = clamp01((f["t"] - 700) / 400.0) * master
-            if appear > 0:
-                layer = Image.new("RGBA", (self.w, self.h), (0, 0, 0, 0))
-                ImageDraw.Draw(layer).text(self.skip_xy, self.skip_label, font=self.font_skip,
-                                           fill=self.colors["intro_ink_faint"] + (int(255 * appear),))
-                img = Image.alpha_composite(img, layer)
-
         out = img.convert("RGB")
         veil = 1 - master
         if veil > 0:
@@ -417,8 +403,6 @@ def main():
     ap.add_argument("--width", type=int, default=1080)
     ap.add_argument("--height", type=int, default=1920)
     ap.add_argument("--fps", type=int, default=60)
-    ap.add_argument("--clean", action="store_true", help="без кнопки «Пропустить»")
-    ap.add_argument("--skip-label", default="Пропустить")
     ap.add_argument("--gif", default=None, help="дополнительно собрать GIF по этому пути")
     args = ap.parse_args()
 
@@ -437,7 +421,6 @@ def main():
                                             brand["badge"], brand["platform"], brand["care"]))
 
     renderer = Renderer(args.width, args.height, geom, brand, script,
-                        show_skip=not args.clean, skip_label=args.skip_label,
                         colors=android_colors(COLORS_XML))
 
     frames = int(round(script.total / 1000.0 * args.fps))
