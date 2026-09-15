@@ -64,6 +64,15 @@ HEAD_KEEP_RECT = (264, 98, 430, 220)   # x0, y0, x1, y1
 # Глаза волчьей маски в координатах исходника.
 EYE_SRC = ((263.0, 128.0), (287.0, 130.0))
 
+# Стопка подбородков: откуда берётся «кожа» и где начинается каскад валиков
+# (всё в координатах исходника).
+CHIN_SKIN_RECT = (258, 150, 400, 232)      # x0, y0, x1, y1 — участок под челюстью
+CHIN_ORIGIN = (302.0, 210.0)               # центр самого верхнего валика
+CHIN_HALF = (64.0, 18.0)                   # половина ширины и высоты валика
+CHIN_STEP = 19.0                           # шаг каскада вниз
+CHIN_GROW = 0.105                          # каждый следующий валик шире
+CHIN_DRIFT_X = 4.0                         # снос вправо, вдоль корпуса
+
 PINK_CORE = np.array([1.00, 0.97, 1.00], np.float32)
 PINK_HOT = np.array([1.00, 0.42, 0.86], np.float32)
 PINK_GLOW = np.array([1.00, 0.16, 0.66], np.float32)
@@ -188,7 +197,13 @@ def fbm(h: int, w: int, rng: np.random.Generator, octaves: int = 6,
 
 
 def smoothstep(edge0: float, edge1: float, x: np.ndarray) -> np.ndarray:
-    t = np.clip((x - edge0) / max(edge1 - edge0, 1e-6), 0.0, 1.0)
+    """Плавная ступенька. Работает и «наоборот», когда edge0 > edge1:
+    раньше знаменатель подрезался снизу через max(...), из-за чего убывающая
+    ступенька вырождалась в жёсткий инвертированный порог."""
+    span = edge1 - edge0
+    if abs(span) < 1e-9:
+        span = 1e-9 if span >= 0 else -1e-9
+    t = np.clip((x - edge0) / span, 0.0, 1.0)
     return t * t * (3.0 - 2.0 * t)
 
 
@@ -273,15 +288,15 @@ def render_space(h: int, w: int, rng: np.random.Generator) -> np.ndarray:
     # Базовый градиент: тёмно-фиолетовый верх → почти чёрный низ.
     sky = np.zeros((h, w, 3), np.float32)
     grad = (1.0 - ny) ** 1.6
-    sky[:, :, 0] = 0.030 + 0.055 * grad
-    sky[:, :, 1] = 0.014 + 0.020 * grad
-    sky[:, :, 2] = 0.075 + 0.145 * grad
+    sky[:, :, 0] = 0.060 + 0.110 * grad
+    sky[:, :, 1] = 0.028 + 0.042 * grad
+    sky[:, :, 2] = 0.135 + 0.235 * grad
 
     # Туманности: три слоя fbm с разными палитрами.
     layers = [
-        (fbm(h, w, rng, 7, 3, 0.55, warp=90.0), np.array([1.00, 0.18, 0.62], np.float32), 0.42),
-        (fbm(h, w, rng, 6, 2, 0.58, warp=70.0), np.array([0.45, 0.20, 1.00], np.float32), 0.34),
-        (fbm(h, w, rng, 6, 4, 0.50, warp=60.0), np.array([0.15, 0.85, 1.00], np.float32), 0.38),
+        (fbm(h, w, rng, 7, 3, 0.55, warp=90.0), np.array([1.00, 0.18, 0.62], np.float32), 0.72),
+        (fbm(h, w, rng, 6, 2, 0.58, warp=70.0), np.array([0.45, 0.20, 1.00], np.float32), 0.58),
+        (fbm(h, w, rng, 6, 4, 0.50, warp=60.0), np.array([0.15, 0.85, 1.00], np.float32), 0.55),
     ]
     for noise, color, strength in layers:
         cloud = smoothstep(0.46, 0.88, noise) ** 1.7
@@ -290,10 +305,10 @@ def render_space(h: int, w: int, rng: np.random.Generator) -> np.ndarray:
 
     # Тёмные пылевые прожилки.
     dust = smoothstep(0.55, 0.95, fbm(h, w, rng, 5, 5, 0.55, warp=40.0))
-    sky *= (1.0 - 0.55 * dust)[:, :, None]
+    sky *= (1.0 - 0.38 * dust)[:, :, None]
 
     # Звёзды: степенное распределение яркости.
-    count = int(h * w / 950)
+    count = int(h * w / 700)
     sx = rng.integers(0, w, count)
     sy = rng.integers(0, h, count)
     mag = rng.random(count).astype(np.float32) ** 7.0
@@ -304,19 +319,19 @@ def render_space(h: int, w: int, rng: np.random.Generator) -> np.ndarray:
     np.add.at(tint[:, :, 0], (sy, sx), mag * (0.75 + 0.45 * hue))
     np.add.at(tint[:, :, 1], (sy, sx), mag * (0.80 + 0.20 * hue))
     np.add.at(tint[:, :, 2], (sy, sx), mag * (1.00 - 0.10 * hue))
-    sky += gauss(tint, 0.7) * 2.1
-    sky += gauss(stars, 2.4)[:, :, None] * 0.30
+    sky += gauss(tint, 0.7) * 2.9
+    sky += gauss(stars, 2.4)[:, :, None] * 0.45
 
     # Крупные звёзды с дифракционными лучами.
     bright = np.zeros((h, w), np.float32)
-    for _ in range(26):
+    for _ in range(40):
         bx, by = int(rng.integers(0, w)), int(rng.integers(0, h))
         power = float(rng.uniform(0.5, 1.0))
         length = int(rng.uniform(16, 52))
         cv2.line(bright, (bx - length, by), (bx + length, by), power * 0.55, 1)
         cv2.line(bright, (bx, by - length), (bx, by + length), power * 0.55, 1)
         cv2.circle(bright, (bx, by), 2, power, -1)
-    sky += gauss(bright, 1.1)[:, :, None] * np.array([0.80, 0.74, 0.80], np.float32)
+    sky += gauss(bright, 1.1)[:, :, None] * np.array([1.05, 0.98, 1.05], np.float32)
 
     return sky
 
@@ -348,7 +363,7 @@ def render_planet(canvas: np.ndarray, cx: float, cy: float, radius: float,
     body = np.zeros((h, w, 3), np.float32)
     col = np.array(base, np.float32)
     for c in range(3):
-        body[:, :, c] = col[c] * tex * (0.10 + 0.95 * lambert)
+        body[:, :, c] = col[c] * tex * (0.20 + 1.15 * lambert)
 
     # Лимбовое свечение и атмосфера снаружи.
     limb = np.clip((rr - 0.86) / 0.14, 0.0, 1.0) ** 2 * inside
@@ -374,7 +389,7 @@ def render_planet(canvas: np.ndarray, cx: float, cy: float, radius: float,
     ring = ring * stripes
     ring *= 1.0 - 0.75 * (inside & (yy < cy))          # задняя часть за планетой
     ring = gauss(ring, 1.0)
-    add_rgb(canvas, ring * 0.30, np.array([1.00, 0.62, 0.92], np.float32))
+    add_rgb(canvas, ring * 0.48, np.array([1.00, 0.62, 0.92], np.float32))
 
 
 def render_portal_ring(canvas: np.ndarray, cx: float, cy: float,
@@ -744,12 +759,12 @@ def place_character(canvas: np.ndarray, rgb: np.ndarray, alpha: np.ndarray,
     # Цветокоррекция: холодные тени, пурпурный подсвет, контраст.
     graded = full_rgb.copy()
     luma = graded @ np.array([0.2126, 0.7152, 0.0722], np.float32)
-    graded = np.clip((graded - 0.48) * 1.26 + 0.48, 0.0, 1.5)
+    graded = np.clip((graded - 0.48) * 1.20 + 0.46, 0.0, 1.6)
     graded[:, :, 0] += (1.0 - luma) * 0.08
     graded[:, :, 2] += (1.0 - luma) * 0.14
     graded[:, :, 1] *= 0.93
     luma2 = (graded @ np.array([0.2126, 0.7152, 0.0722], np.float32))[:, :, None]
-    graded = np.clip(luma2 + (graded - luma2) * 1.30, 0.0, 1.6)   # сочнее
+    graded = np.clip(luma2 + (graded - luma2) * 1.12, 0.0, 1.6)   # сочнее
 
     # Контровой свет: розовый слева-снизу (от взрыва), голубой справа-сверху.
     gx = cv2.Sobel(full_a, cv2.CV_32F, 1, 0, ksize=5)
@@ -760,10 +775,10 @@ def place_character(canvas: np.ndarray, rgb: np.ndarray, alpha: np.ndarray,
                                    ((0.78, -0.62), CYAN_RIM, 0.40)):
         facing = np.clip(-(gx * lx + gy * ly), 0.0, None)
         facing = facing / (facing.max() + 1e-6)
-        add_rgb(graded, facing * edge_band * power * 1.6, color)
+        add_rgb(graded, facing * edge_band * power * 1.35, color)
 
     # Наружное свечение силуэта.
-    glow = gauss(full_a, 22.0) * 0.16 + gauss(full_a, 64.0) * 0.07
+    glow = gauss(full_a, 22.0) * 0.13 + gauss(full_a, 64.0) * 0.06
     add_rgb(canvas, glow * (1.0 - full_a), PINK_GLOW)
 
     a3 = np.clip(full_a, 0.0, 1.0)[:, :, None]
@@ -807,14 +822,14 @@ def post_process(img: np.ndarray, rng: np.random.Generator, *,
 
     # Виньетка.
     r = np.hypot((xx - cx) / cx, (yy - cy) / cy)
-    out *= (1.0 - 0.42 * smoothstep(0.55, 1.45, r))[:, :, None]
+    out *= (1.0 - 0.24 * smoothstep(0.60, 1.55, r))[:, :, None]
 
     # Тон-маппинг (фильмик) + насыщенность.
-    out = np.clip(out, 0.0, None)
-    out = out / (1.0 + out) * 1.12
+    out = np.clip(out, 0.0, None) * 0.98        # экспозиция
+    out = out / (1.0 + out) * 1.14
     luma = (out @ np.array([0.2126, 0.7152, 0.0722], np.float32))[:, :, None]
     out = np.clip(luma + (out - luma) * 1.26, 0.0, 1.0)
-    out = np.clip((out - 0.45) * 1.14 + 0.45, 0.0, 1.0)     # плотнее тени
+    out = np.clip((out - 0.46) * 1.10 + 0.50, 0.0, 1.0)     # контраст, но светлее
 
     # Зерно.
     grain = rng.normal(0.0, 0.016, (h, w, 1)).astype(np.float32)
@@ -862,6 +877,64 @@ def draw_caption(img: np.ndarray, text: str) -> np.ndarray:
 # 6. Сцена целиком
 # ----------------------------------------------------------------------------
 
+def render_chin_stack(rgb: np.ndarray, alpha: np.ndarray, count: int,
+                      rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+    """Каскад двойных подбородков под челюстью.
+
+    Каждый валик — суперэллипс |u|^k + v^2 < 1 (плоские бока, скруглённые
+    концы), залитый кожей из-под челюсти, с тенью складки по верхней кромке
+    и бликом по низу. Валики рисуются сверху вниз, поэтому нижний край
+    каждого перекрывает следующий — ровно так, как ложатся настоящие складки.
+    """
+    if count <= 0:
+        return rgb, alpha
+    rgb, alpha = rgb.copy(), alpha.copy()
+    h, w = alpha.shape
+    x0, y0, x1, y1 = CHIN_SKIN_RECT
+    skin = rgb[max(0, y0):min(h, y1), max(0, x0):min(w, x1)].copy()
+    if skin.size == 0:
+        return rgb, alpha
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    cx0, cy0 = CHIN_ORIGIN
+    hx, hy = CHIN_HALF
+
+    for i in range(1, count + 1):
+        jitter_w = 1.0 + float(rng.uniform(-0.04, 0.04))
+        wx = hx * (1.0 + CHIN_GROW * i) * jitter_w
+        wy = hy * (1.0 + CHIN_GROW * 0.35 * i)
+        cx = cx0 + CHIN_DRIFT_X * i + float(rng.uniform(-3.0, 3.0))
+        cy = cy0 + CHIN_STEP * i
+
+        u = (xx - cx) / wx
+        v = (yy - cy) / wy
+        shape = np.abs(u) ** 3.2 + v * v
+        mask = smoothstep(1.0, 0.80, shape)
+        if float(mask.max()) <= 0.0:
+            continue
+
+        bw, bh = max(2, int(2 * wx)), max(2, int(2 * wy))
+        tile = cv2.resize(skin, (bw, bh), interpolation=cv2.INTER_LANCZOS4)
+        if bool(rng.integers(0, 2)):                 # чтобы кожа не тайлилась
+            tile = tile[:, ::-1]
+        patch = np.zeros((h, w, 3), np.float32)
+        px, py = int(cx - wx), int(cy - wy)
+        ax0, ay0 = max(0, px), max(0, py)
+        ax1, ay1 = min(w, px + bw), min(h, py + bh)
+        if ax0 >= ax1 or ay0 >= ay1:
+            continue
+        patch[ay0:ay1, ax0:ax1] = tile[ay0 - py:ay1 - py, ax0 - px:ax1 - px]
+
+        shade = (1.0 - 0.58 * smoothstep(-0.15, -0.95, v)
+                 + 0.22 * np.exp(-((v - 0.30) ** 2) / 0.10))
+        patch *= np.clip(shade, 0.0, 2.0)[:, :, None]
+
+        m3 = mask[:, :, None]
+        rgb = rgb * (1.0 - m3) + patch * m3
+        alpha = np.maximum(alpha, mask)
+
+    return np.clip(rgb, 0.0, 1.6), np.clip(alpha, 0.0, 1.0)
+
+
 def border_ramp(shape: tuple[int, int], band: int) -> np.ndarray:
     """Линейное затухание к краям кадра исходника."""
     h, w = shape
@@ -892,11 +965,12 @@ def paste_scaled(src: np.ndarray, scale: float, offset: tuple[int, int],
 
 
 def render_dissolve(canvas: np.ndarray, band_mask: np.ndarray,
-                    rng: np.random.Generator, count: int = 380) -> None:
+                    rng: np.random.Generator, count: int = 1100) -> None:
     """Срезы кадра исходника рассыпаются искрами — «дезинтеграция»,
     вместо прямой отрубленной грани."""
     h, w = canvas.shape[:2]
-    weight = band_mask.astype(np.float64).ravel()
+    patchy = fbm(h, w, rng, 5, 9, 0.55) ** 1.8      # плотность искр рваная
+    weight = (band_mask * (0.15 + 1.85 * patchy)).astype(np.float64).ravel()
     total = weight.sum()
     if total <= 0:
         return
@@ -904,7 +978,7 @@ def render_dissolve(canvas: np.ndarray, band_mask: np.ndarray,
                      replace=False, p=weight / total)
     ys, xs = np.unravel_index(idx, (h, w))
     layer = np.zeros((h, w), np.float32)
-    jitter = rng.normal(0.0, 6.0, (2, ys.size))
+    jitter = rng.normal(0.0, 13.0, (2, ys.size))
     for x, y, jx, jy, mag in zip(xs, ys, jitter[0], jitter[1],
                                  rng.random(ys.size) ** 2.2):
         px, py = int(x + jx), int(y + jy)
@@ -916,24 +990,27 @@ def render_dissolve(canvas: np.ndarray, band_mask: np.ndarray,
 
 
 def compose(src_bgr: np.ndarray, width: int, height: int, seed: int,
-            caption: str | None) -> np.ndarray:
+            caption: str | None, chins: int = 0) -> np.ndarray:
     rng = np.random.default_rng(seed)
 
     rgb, alpha_raw = extract_character(src_bgr)
-    ramp = border_ramp(alpha_raw.shape, 9)
+    rgb, alpha_raw = render_chin_stack(rgb, alpha_raw, chins, rng)
+    ramp = border_ramp(alpha_raw.shape, 34)
     alpha = alpha_raw * ramp
-    cut_src = ((ramp < 0.60) & (alpha_raw > 0.30)).astype(np.float32)
+    cut_src = ((ramp < 0.55) & (alpha_raw > 0.30)).astype(np.float32)
     ys, xs = np.nonzero(alpha > 0.35)
     if ys.size == 0:
         raise SystemExit("[fx] персонаж не найден на исходнике")
     sy0, sy1 = int(ys.min()), int(ys.max()) + 1
     sx0, sx1 = int(xs.min()), int(xs.max()) + 1
 
-    # Кадрируем так, чтобы все три среза исходного кадра (левый, правый и
-    # верхний) ушли ровно за края холста — прямых «отрубленных» граней не видно.
-    scale = min((height * 0.920) / (sy1 - sy0), (width * 1.000) / (sx1 - sx0))
+    # Персонаж занимает не весь кадр — вокруг остаётся космос. Срезы
+    # исходного кадра (левый, правый, верхний) при этом видны, поэтому они
+    # растушёваны и осыпаются искрами — читается как дезинтеграция, а не как
+    # прямая отрубленная грань.
+    scale = min((height * 0.760) / (sy1 - sy0), (width * 0.880) / (sx1 - sx0))
     off_x = int(round((width - (sx1 - sx0) * scale) / 2.0))
-    off_y = 0
+    off_y = int(round(height * 0.075))
 
     def to_canvas(pt):
         return (off_x + (pt[0] - sx0) * scale, off_y + (pt[1] - sy0) * scale)
@@ -944,7 +1021,7 @@ def compose(src_bgr: np.ndarray, width: int, height: int, seed: int,
     # --- дальний план ---
     canvas = render_space(height, width, rng)
     render_planet(canvas, width * 1.06, height * 0.055, height * 0.235, rng,
-                  base=(0.62, 0.18, 0.70), rings=True, light=(-0.75, 0.30))
+                  base=(0.48, 0.16, 0.58), rings=True, light=(-0.75, 0.30))
     render_planet(canvas, width * 0.115, height * 0.905, height * 0.036, rng,
                   base=(0.42, 0.40, 0.55), rings=False, light=(-0.6, -0.5))
     render_warp_streaks(canvas, eyes[0][0], eyes[0][1], rng)
@@ -982,7 +1059,7 @@ def compose(src_bgr: np.ndarray, width: int, height: int, seed: int,
     cv2.line(spill, (int(eyes[0][0]), int(eyes[0][1])),
              (int(target[0]), int(target[1])), 1.0, int(width * 0.05), cv2.LINE_AA)
     spill = gauss(spill, width * 0.04) * char_alpha
-    add_rgb(canvas, spill * 0.15, PINK_HOT)
+    add_rgb(canvas, spill * 0.10, PINK_HOT)
 
     # Морда должна быть освещена собственными лучами.
     face = np.zeros((height, width), np.float32)
@@ -990,7 +1067,7 @@ def compose(src_bgr: np.ndarray, width: int, height: int, seed: int,
                int(width * 0.030), 1.0, -1)
     face = gauss(face, width * 0.028) * char_alpha
     face /= max(float(face.max()), 1e-6)
-    add_rgb(canvas, face * 0.16, PINK_HOT)
+    add_rgb(canvas, face * 0.11, PINK_HOT)
     add_rgb(canvas, face ** 3 * 0.09, PINK_CORE)
 
     out = post_process(canvas, rng)
@@ -1015,8 +1092,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--src", required=True, help="исходное фото персонажа")
     ap.add_argument("--out", required=True, help="куда записать PNG")
     ap.add_argument("--width", type=int, default=1400)
-    ap.add_argument("--height", type=int, default=1750)
+    ap.add_argument("--height", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=2077)
+    ap.add_argument("--chins", type=int, default=10,
+                    help="сколько двойных подбородков нарастить (0 — выключить)")
     ap.add_argument("--caption", default=None,
                     help="крупная подпись сверху (например «Я ФИКСИРУЮ»)")
     ap.add_argument("--cutout", default=None,
@@ -1028,6 +1107,7 @@ def main(argv: list[str] | None = None) -> int:
     if width * height > MAX_CANVAS_PIXELS:
         raise SystemExit("[fx] запрошенный холст слишком велик")
     seed = _clamp(args.seed, 0, 2 ** 31 - 1, "--seed")
+    chins = _clamp(args.chins, 0, 40, "--chins")
 
     src_path = _safe_path(args.src, must_exist=True)
     out_path = _safe_path(args.out, must_exist=False)
@@ -1040,14 +1120,19 @@ def main(argv: list[str] | None = None) -> int:
         if cut_path == out_path:
             raise SystemExit("[fx] --cutout и --out не могут совпадать")
         rgb, alpha = extract_character(src)
+        rgb, alpha = render_chin_stack(rgb, alpha, chins,
+                                       np.random.default_rng(seed))
+        # За силуэтом в RGB лежит исходный зигзаг: обнуляем его, иначе
+        # просмотрщики без поддержки альфы покажут старый фон.
+        visible = (alpha > 0.004)[:, :, None]
         rgba = np.dstack([
-            (np.clip(rgb, 0, 1) * 255).astype(np.uint8)[:, :, ::-1],
+            (np.clip(rgb * visible, 0, 1) * 255).astype(np.uint8)[:, :, ::-1],
             (np.clip(alpha, 0, 1) * 255).astype(np.uint8),
         ])
         save_image_atomic(cut_path, rgba)
         print(f"[fx] вырезка: {cut_path}")
 
-    out = compose(src, width, height, seed, args.caption)
+    out = compose(src, width, height, seed, args.caption, chins)
     bgr = (np.clip(out, 0, 1) * 255.0 + 0.5).astype(np.uint8)[:, :, ::-1]
     save_image_atomic(out_path, bgr)
     print(f"[fx] готово: {out_path} ({width}x{height})")
