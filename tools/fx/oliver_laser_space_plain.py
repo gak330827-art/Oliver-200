@@ -73,6 +73,13 @@ CHIN_STEP = 19.0                           # шаг каскада вниз
 CHIN_GROW = 0.105                          # каждый следующий валик шире
 CHIN_DRIFT_X = 4.0                         # снос вправо, вдоль корпуса
 
+# Камера для сгенерированного персонажа (мир: Y вверх, ступни на y=0).
+CAM_TARGET = (-0.85, 3.30, 0.0)
+CAM_DIR = (0.2205, 0.1103, 0.9691)         # нормированное направление на камеру
+CAM_DIST = 21.0
+CAM_FOV = 32.0
+RENDER_SSAA = 2
+
 PINK_CORE = np.array([1.00, 0.97, 1.00], np.float32)
 PINK_HOT = np.array([1.00, 0.42, 0.86], np.float32)
 PINK_GLOW = np.array([1.00, 0.16, 0.66], np.float32)
@@ -216,6 +223,379 @@ def gauss(img: np.ndarray, sigma: float) -> np.ndarray:
         return img
     return cv2.GaussianBlur(img, (0, 0), sigma, borderType=cv2.BORDER_REPLICATE)
 
+
+# ============================================================================
+#  ГЕНЕРАЦИЯ ПЕРСОНАЖА: геометрия + собственный софтверный растеризатор
+#  Ни одного пикселя из фотографии — только математика.
+# ============================================================================
+
+M_FUR, M_SHIRT, M_CAP, M_MUZZLE, M_DARK, M_SHOE, M_SOLE, M_GOLD, M_BOWL, M_GARLIC = range(10)
+
+def rot_x(a):
+    c,s=np.cos(a),np.sin(a); return np.array([[1,0,0],[0,c,-s],[0,s,c]],np.float32)
+def rot_y(a):
+    c,s=np.cos(a),np.sin(a); return np.array([[c,0,s],[0,1,0],[-s,0,c]],np.float32)
+def rot_z(a):
+    c,s=np.cos(a),np.sin(a); return np.array([[c,-s,0],[s,c,0],[0,0,1]],np.float32)
+
+CUBE = np.array([[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                 [-1,-1, 1],[1,-1, 1],[1,1, 1],[-1,1, 1]],np.float32)*0.5
+QUADS = [(0,3,2,1,(0,0,-1)),(4,5,6,7,(0,0,1)),(0,1,5,4,(0,-1,0)),
+         (3,7,6,2,(0,1,0)),(0,4,7,3,(-1,0,0)),(1,2,6,5,(1,0,0))]
+
+class Scene:
+    """Накопитель геометрии: мир, локальные координаты (для текстур), грани."""
+    def __init__(self):
+        self.V=[]; self.L=[]; self.F=[]; self.N=[]; self.M=[]; self.n=0
+
+    def push(self, world, local, R, mat):
+        base=self.n                      # именно число ВЕРШИН, не коробок
+        self.V.append(world); self.L.append(local); self.n+=8
+        for a,b,c,d,nrm in QUADS:
+            nn=np.asarray(nrm,np.float32)@R.T
+            self.F.append((base+a,base+b,base+c)); self.N.append(nn); self.M.append(mat)
+            self.F.append((base+a,base+c,base+d)); self.N.append(nn); self.M.append(mat)
+
+    def box(self, center, size, mat, R=None, pivot=None):
+        R = np.eye(3,dtype=np.float32) if R is None else R
+        c=np.asarray(center,np.float32); local=CUBE*np.asarray(size,np.float32)
+        if pivot is None:
+            world = local@R.T + c
+        else:
+            pv=np.asarray(pivot,np.float32)
+            world = (local + (c-pv))@R.T + pv
+        self.push(world, local, R, mat)
+
+    def finish(self):
+        self.V=np.concatenate(self.V,0); self.L=np.concatenate(self.L,0)
+        self.F=np.array(self.F,np.int32); self.N=np.array(self.N,np.float32)
+        self.M=np.array(self.M,np.int32)
+        self.N/= (np.linalg.norm(self.N,axis=1,keepdims=True)+1e-9)
+
+
+# ----------------------------------------------------------------- персонаж
+def build(chins: int = 10):
+    """Собирает персонажа из коробок. Все размеры выведены из пропорций,
+    чтобы правки не рассыпали остальную фигуру."""
+    sc = Scene()
+    body = rot_y(np.deg2rad(-26.0))
+
+    LEG_H   = 1.62                      # коротконогий, «квадратный» силуэт
+    TORSO_H = 2.35
+    torso_y = LEG_H + TORSO_H * 0.5
+    neck_y  = LEG_H + TORSO_H + 0.22
+    head_y  = neck_y + 1.28
+    sh_y    = LEG_H + TORSO_H - 0.10    # высота плеча
+    ARM_H   = 2.10
+
+    def B(center, size, mat, extra=None, pivot=None):
+        R = body if extra is None else body @ extra
+        c = np.asarray(center, np.float32)
+        if pivot is None:
+            sc.box(c @ body.T, size, mat, R)
+        else:
+            pv = np.asarray(pivot, np.float32)
+            local = CUBE * np.asarray(size, np.float32)
+            world = (local + (c - pv)) @ R.T + pv @ body.T
+            sc.push(world, local, R, mat)
+
+    # ноги и кроссовки
+    for sx in (-1, 1):
+        B((0.66 * sx, LEG_H * 0.5, 0.0), (1.02, LEG_H + 0.1, 1.08), M_FUR)
+        B((0.66 * sx, 0.32, 0.20), (1.18, 0.62, 1.56), M_SHOE)
+        B((0.66 * sx, 0.08, 0.20), (1.22, 0.20, 1.60), M_SOLE)
+    # корпус и шея
+    B((0.0, torso_y, 0.0), (2.95, TORSO_H, 1.75), M_SHIRT)
+    B((0.0, neck_y, 0.0), (1.00, 0.60, 1.00), M_FUR)
+
+    # руки: знак поворота зависит от стороны, иначе обе уходят внутрь корпуса
+    hands = {}
+    for sx, ang_z, ang_x in ((-1, -46.0, -6.0), (1, 34.0, 10.0)):
+        Rarm = rot_z(np.deg2rad(ang_z)) @ rot_x(np.deg2rad(ang_x))
+        shoulder = np.array([1.74 * sx, sh_y, 0.0], np.float32)
+        B(shoulder + np.array([0, -ARM_H * 0.5, 0], np.float32),
+          (0.96, ARM_H, 1.00), M_FUR, extra=Rarm, pivot=shoulder)
+        B(shoulder + np.array([0, -0.30, 0], np.float32),
+          (1.10, 0.84, 1.12), M_SHIRT, extra=Rarm, pivot=shoulder)
+        hands[sx] = shoulder + np.array([0, -ARM_H, 0], np.float32) @ Rarm.T
+
+    # голова и всё, что на ней
+    head = rot_y(np.deg2rad(-18.0)) @ rot_x(np.deg2rad(10.0))
+    hc = np.array([0.0, head_y, 0.0], np.float32)
+    Rh = body @ head
+
+    def H(off, size, mat):
+        local = CUBE * np.asarray(size, np.float32)
+        world = (local + np.asarray(off, np.float32)) @ Rh.T + hc @ body.T
+        sc.push(world, local, Rh, mat)
+
+    H((0, 0, 0), (1.95, 1.75, 1.75), M_FUR)
+    H((-0.20, -0.26, 1.08), (1.08, 0.82, 0.80), M_MUZZLE)   # морда
+    H((-0.20, -0.40, 1.48), (0.44, 0.34, 0.22), M_DARK)     # нос
+    for sx in (-1, 1):
+        H((0.60 * sx, 0.98, -0.10), (0.42, 0.56, 0.30), M_FUR)      # уши
+    for sx in (-1, 1):
+        H((0.44 * sx - 0.06, 0.20, 0.90), (0.44, 0.14, 0.10), M_DARK)  # глаза
+    H((0.0, 0.86, -0.05), (2.08, 0.62, 1.86), M_CAP)        # кепка
+    H((-0.06, 0.62, 1.20), (1.94, 0.18, 1.30), M_CAP)       # козырёк
+
+    # цепь и подвеска
+    for k in range(18):
+        a = 2 * np.pi * k / 18
+        B((np.sin(a) * 1.35, neck_y - 0.20, np.cos(a) * 0.95),
+          (0.23, 0.23, 0.23), M_GOLD)
+    B((0.10, neck_y - 0.72, 0.92), (0.32, 0.44, 0.24), M_GOLD)
+
+    # каскад подбородков: валики перекрывают друг друга, поэтому верхние
+    # грани не видны и стопка читается складками, а не лесенкой
+    for i in range(1, chins + 1):
+        t = i / float(chins)
+        # каждый следующий валик шире и чуть сильнее нависает вперёд: камера
+        # смотрит сверху, поэтому его верхняя грань ловит свет и между
+        # складками появляется читаемая линия
+        B((-0.12, head_y - 0.70 - 0.205 * i, 1.00 + 0.22 * t),
+          (0.90 + 1.30 * t, 0.26, 0.60 + 0.30 * t), M_FUR)
+
+    # миска с чесноком — в поднятой руке
+    hl = hands[-1]
+    B((hl[0] - 0.10, hl[1] + 0.22, hl[2] + 0.35), (1.05, 0.38, 1.05), M_BOWL)
+    B((hl[0] - 0.10, hl[1] + 0.58, hl[2] + 0.35), (0.66, 0.52, 0.66), M_GARLIC)
+    # указательный палец — опущенная рука
+    hr = hands[1]
+    B((hr[0] + 0.10, hr[1] - 0.45, hr[2] + 0.30), (0.34, 0.95, 0.34), M_FUR)
+
+    sc.finish()
+    eyes = np.array([(np.array([0.44 * sx - 0.06, 0.20, 1.02], np.float32) @ Rh.T)
+                     + hc @ body.T for sx in (-1, 1)], np.float32)
+    return sc, eyes
+
+
+# ----------------------------------------------------------------- камера
+def look_at(eye,target,up=(0,1,0)):
+    eye=np.asarray(eye,np.float32); target=np.asarray(target,np.float32)
+    f=target-eye; f/=np.linalg.norm(f)
+    r=np.cross(f,np.asarray(up,np.float32)); r/=np.linalg.norm(r)
+    u=np.cross(r,f)
+    return np.stack([r,u,-f],0), eye
+
+def project(P,R,eye,W,H,fov_deg):
+    cam=(P-eye)@R.T
+    z=-cam[:,2]
+    fl=1.0/np.tan(np.deg2rad(fov_deg)*0.5)
+    aspect=W/float(H)
+    zz=np.maximum(z,1e-4)
+    sx=(cam[:,0]/zz*fl/aspect*0.5+0.5)*W
+    sy=(0.5-cam[:,1]/zz*fl*0.5)*H
+    return sx,sy,z
+
+# ----------------------------------------------------------------- 3D-шум
+def _hash3(ix,iy,iz):
+    n=(ix*np.int64(374761393)+iy*np.int64(668265263)+iz*np.int64(1274126177))
+    n=(n ^ (n>>np.int64(13)))*np.int64(1274126177)
+    n=n ^ (n>>np.int64(16))
+    return (n & np.int64(0xFFFFFF)).astype(np.float32)/float(0xFFFFFF)
+
+def vnoise3(p):
+    i=np.floor(p).astype(np.int64); f=p-i
+    f=f*f*(3.0-2.0*f)
+    x0,y0,z0=i[:,0],i[:,1],i[:,2]
+    out=0.0
+    for dz in (0,1):
+        for dy in (0,1):
+            for dx in (0,1):
+                h=_hash3(x0+dx,y0+dy,z0+dz)
+                wx=f[:,0] if dx else 1.0-f[:,0]
+                wy=f[:,1] if dy else 1.0-f[:,1]
+                wz=f[:,2] if dz else 1.0-f[:,2]
+                out=out+h*wx*wy*wz
+    return out
+
+def fbm3(p,oct=4,freq=1.0,gain=0.5):
+    tot=np.zeros(p.shape[0],np.float32); amp=1.0; norm=0.0
+    for _ in range(oct):
+        tot+=amp*vnoise3(p*freq); norm+=amp; amp*=gain; freq*=2.02
+    return tot/norm
+
+# ----------------------------------------------------------------- материалы
+def albedo(mat, L, W):
+    n=L.shape[0]
+    out=np.zeros((n,3),np.float32)
+    if mat==M_FUR:
+        t=fbm3(W*1.25+17.0,4)
+        v=np.clip((t-0.36)/0.34,0,1); v=v*v*(3-2*v)
+        dark=np.array([0.36,0.10,0.44],np.float32)
+        mid =np.array([0.68,0.24,0.76],np.float32)
+        lite=np.array([0.92,0.62,0.95],np.float32)
+        out=dark+(mid-dark)*v[:,None]
+        hi=np.clip((t-0.66)/0.22,0,1)
+        out=out+(lite-out)*(hi*hi)[:,None]
+    elif mat==M_SHIRT:
+        t=fbm3(W*3.5+3.0,3)
+        base=np.array([0.40,0.19,0.15],np.float32)
+        out=base*(0.85+0.30*t)[:,None]
+    elif mat==M_CAP:
+        t=fbm3(W*6.0+41.0,3)
+        out=np.array([0.72,0.72,0.70],np.float32)*(0.88+0.22*t)[:,None]
+    elif mat==M_MUZZLE:
+        t=fbm3(W*4.0+7.0,3)
+        out=np.array([0.82,0.80,0.80],np.float32)*(0.80+0.30*t)[:,None]
+    elif mat==M_DARK:
+        out[:]=np.array([0.045,0.030,0.055],np.float32)
+    elif mat==M_SHOE:
+        out[:]=np.array([0.14,0.58,0.62],np.float32)
+    elif mat==M_SOLE:
+        out[:]=np.array([0.88,0.90,0.92],np.float32)
+    elif mat==M_GOLD:
+        out[:]=np.array([0.95,0.70,0.16],np.float32)
+    elif mat==M_BOWL:
+        out[:]=np.array([0.18,0.50,0.30],np.float32)
+    elif mat==M_GARLIC:
+        t=fbm3(W*7.0+90.0,3)
+        out=np.array([0.92,0.90,0.86],np.float32)*(0.82+0.25*t)[:,None]
+    return out
+
+SPEC = {M_FUR:0.12, M_SHIRT:0.05, M_CAP:0.10, M_MUZZLE:0.14, M_DARK:0.35,
+        M_SHOE:0.30, M_SOLE:0.22, M_GOLD:0.85, M_BOWL:0.25, M_GARLIC:0.15}
+
+# ----------------------------------------------------------------- растеризация
+def _tri_setup(sx,sy,F):
+    x0,x1,x2=sx[F[:,0]],sx[F[:,1]],sx[F[:,2]]
+    y0,y1,y2=sy[F[:,0]],sy[F[:,1]],sy[F[:,2]]
+    area=(x1-x0)*(y2-y0)-(x2-x0)*(y1-y0)
+    return x0,y0,x1,y1,x2,y2,area
+
+def _cover(x0,y0,x1,y1,x2,y2,area,W,H):
+    """Пиксели, накрытые треугольником. Знак площади не важен: обходим
+    обе намотки, иначе половина граней куба молча исчезает."""
+    bx0=max(0,int(np.floor(min(x0,x1,x2)))); bx1=min(W,int(np.ceil(max(x0,x1,x2)))+1)
+    by0=max(0,int(np.floor(min(y0,y1,y2)))); by1=min(H,int(np.ceil(max(y0,y1,y2)))+1)
+    if bx0>=bx1 or by0>=by1 or area==0.0:
+        return None
+    PX,PY=np.meshgrid(np.arange(bx0,bx1,dtype=np.float32)+0.5,
+                      np.arange(by0,by1,dtype=np.float32)+0.5)
+    e0=(x1-PX)*(y2-PY)-(x2-PX)*(y1-PY)
+    e1=(x2-PX)*(y0-PY)-(x0-PX)*(y2-PY)
+    e2=area-e0-e1
+    if area>0: m=(e0>=0)&(e1>=0)&(e2>=0)
+    else:      m=(e0<=0)&(e1<=0)&(e2<=0)
+    if not m.any():
+        return None
+    inv=1.0/area
+    return bx0,by0,bx1,by1,m,e0*inv,e1*inv,e2*inv
+
+
+def depth_pass(sc,R,eye,W,H,fov):
+    sx,sy,z=project(sc.V,R,eye,W,H,fov)
+    zbuf=np.full((H,W),1e9,np.float32); idbuf=np.full((H,W),-1,np.int32)
+    F=sc.F
+    x0,y0,x1,y1,x2,y2,area=_tri_setup(sx,sy,F)
+    zv=z[F]
+    cen=sc.V[F].mean(1)
+    facing=((cen-eye)*sc.N).sum(1)
+    for t in range(F.shape[0]):
+        if facing[t]>=0.0 or zv[t].min()<=1e-3:      # отсечение задних граней
+            continue
+        r=_cover(x0[t],y0[t],x1[t],y1[t],x2[t],y2[t],area[t],W,H)
+        if r is None: continue
+        bx0,by0,bx1,by1,m,w0,w1,w2=r
+        iz=w0/zv[t,0]+w1/zv[t,1]+w2/zv[t,2]
+        d=1.0/np.maximum(iz,1e-9)
+        sub=zbuf[by0:by1,bx0:bx1]
+        upd=m&(d<sub)
+        sub[upd]=d[upd]
+        idbuf[by0:by1,bx0:bx1][upd]=t
+    return zbuf,idbuf,(sx,sy,z)
+
+
+def shadow_map(sc, light_dir, size=1200):
+    """Ортографическая карта глубины со стороны источника."""
+    L=np.asarray(light_dir,np.float32); L/=np.linalg.norm(L)
+    up=np.array([0,1,0],np.float32)
+    if abs(L@up)>0.95: up=np.array([1,0,0],np.float32)
+    r=np.cross(L,up); r/=np.linalg.norm(r); u=np.cross(r,L)
+    B=np.stack([r,u,L],0)
+    P=sc.V@B.T
+    lo=P.min(0)-0.4; hi=P.max(0)+0.4
+    span=np.maximum(hi-lo,1e-3)
+    zb=np.full((size,size),1e9,np.float32)
+    sx=(P[:,0]-lo[0])/span[0]*(size-1)
+    sy=(P[:,1]-lo[1])/span[1]*(size-1)
+    dz=P[:,2]-lo[2]
+    F=sc.F
+    x0,y0,x1,y1,x2,y2,area=_tri_setup(sx,sy,F)
+    dv=dz[F]
+    for t in range(F.shape[0]):
+        r=_cover(x0[t],y0[t],x1[t],y1[t],x2[t],y2[t],area[t],size,size)
+        if r is None: continue
+        bx0,by0,bx1,by1,m,w0,w1,w2=r
+        d=w0*dv[t,0]+w1*dv[t,1]+w2*dv[t,2]
+        sub=zb[by0:by1,bx0:bx1]
+        upd=m&(d<sub); sub[upd]=d[upd]
+    return zb,B,lo,span
+
+def render_character(W,H,cam_eye,cam_target,fov,chins=10,ssaa=2):
+    sc,eyes=build(chins)
+    RW,RH=W*ssaa,H*ssaa
+    R,eye=look_at(cam_eye,cam_target)
+    zbuf,idbuf,(sx,sy,z)=depth_pass(sc,R,eye,RW,RH,fov)
+
+    KEY=np.array([-0.62,0.42,0.66],np.float32); KEY/=np.linalg.norm(KEY)
+    FILL=np.array([0.70,0.35,0.42],np.float32); FILL/=np.linalg.norm(FILL)
+    smap,SB,slo,sspan=shadow_map(sc,KEY)
+
+    col=np.zeros((RH,RW,3),np.float32)
+    alpha=(idbuf>=0).astype(np.float32)
+    F=sc.F; V=sc.V; L=sc.L
+    x0,y0,x1,y1,x2,y2,area=_tri_setup(sx,sy,F)
+    zv=z[F]
+    view_dir=None
+    for t in range(F.shape[0]):
+        bx0=max(0,int(np.floor(min(x0[t],x1[t],x2[t])))); bx1=min(RW,int(np.ceil(max(x0[t],x1[t],x2[t])))+1)
+        by0=max(0,int(np.floor(min(y0[t],y1[t],y2[t])))); by1=min(RH,int(np.ceil(max(y0[t],y1[t],y2[t])))+1)
+        if bx0>=bx1 or by0>=by1 or area[t]==0: continue
+        win=idbuf[by0:by1,bx0:bx1]
+        m=(win==t)
+        if not m.any(): continue
+        ys,xs_=np.nonzero(m)
+        PX=(xs_+bx0).astype(np.float32)+0.5; PY=(ys+by0).astype(np.float32)+0.5
+        inv=1.0/area[t]
+        w0=((x1[t]-PX)*(y2[t]-PY)-(x2[t]-PX)*(y1[t]-PY))*inv
+        w1=((x2[t]-PX)*(y0[t]-PY)-(x0[t]-PX)*(y2[t]-PY))*inv
+        w2=1.0-w0-w1
+        iw=np.stack([w0/zv[t,0],w1/zv[t,1],w2/zv[t,2]],1)
+        iw/=iw.sum(1,keepdims=True)
+        tri=F[t]
+        Pw=iw@V[tri]; Pl=iw@L[tri]
+        N=sc.N[t]
+        alb=albedo(int(sc.M[t]),Pl,Pw)
+        # тень
+        S=Pw@SB.T
+        u=(S[:,0]-slo[0])/sspan[0]*(smap.shape[0]-1)
+        v=(S[:,1]-slo[1])/sspan[1]*(smap.shape[0]-1)
+        d=S[:,2]-slo[2]
+        ui=np.clip(u.astype(np.int32),0,smap.shape[0]-1)
+        vi=np.clip(v.astype(np.int32),0,smap.shape[0]-1)
+        lit=(d<=smap[vi,ui]+0.055).astype(np.float32)
+        ndl=max(0.0,(float(N@KEY)+0.32)/1.32)      # мягкая «обёртка» света
+        ndf=max(0.0,(float(N@FILL)+0.25)/1.25)
+        vd=Pw-eye; vd/= (np.linalg.norm(vd,axis=1,keepdims=True)+1e-9)
+        rim=np.clip(1.0+ (vd@N), 0.0,1.0)**2.6
+        key_col=np.array([1.00,0.56,0.88],np.float32)*2.35
+        fill_col=np.array([0.34,0.70,1.00],np.float32)*0.95
+        amb=np.array([0.42,0.34,0.62],np.float32)*0.85
+        kterm=(ndl*(0.25+0.75*lit))[:,None]*key_col[None,:]
+        shade=alb*(kterm+(fill_col*ndf)[None,:]+amb[None,:])
+        # блик
+        hvec=KEY-vd; hvec/= (np.linalg.norm(hvec,axis=1,keepdims=True)+1e-9)
+        spec=np.clip(hvec@N,0,1)**28.0*SPEC.get(int(sc.M[t]),0.1)
+        shade+=spec[:,None]*key_col*(0.25+0.75*lit)[:,None]
+        shade+=rim[:,None]*np.array([1.00,0.38,0.82],np.float32)*0.95
+        col[ys+by0,xs_+bx0]=shade
+    if ssaa>1:
+        col=cv2.resize(col,(W,H),interpolation=cv2.INTER_AREA)
+        alpha=cv2.resize(alpha,(W,H),interpolation=cv2.INTER_AREA)
+    ex,ey,_=project(eyes,R,eye,W,H,fov)
+    return col,alpha,list(zip(ex.tolist(),ey.tolist()))
 
 # ----------------------------------------------------------------------------
 # 1. Сегментация персонажа
@@ -733,30 +1113,38 @@ def render_plasma_fire(canvas: np.ndarray, rng: np.random.Generator) -> None:
 # 4. Компоновка персонажа
 # ----------------------------------------------------------------------------
 
-def place_character(canvas: np.ndarray, rgb: np.ndarray, alpha: np.ndarray,
-                    scale: float, offset: tuple[int, int],
-                    rng: np.random.Generator) -> np.ndarray:
-    """Вклеивает персонажа, возвращает его альфу в координатах холста."""
-    h, w = canvas.shape[:2]
+def composite_character(canvas: np.ndarray, layer: np.ndarray,
+                       alpha: np.ndarray) -> np.ndarray:
+    """Кладёт слой персонажа на фон и добавляет наружное свечение силуэта."""
+    a = np.clip(alpha, 0.0, 1.0)
+    glow = gauss(a, 22.0) * 0.13 + gauss(a, 64.0) * 0.06
+    add_rgb(canvas, glow * (1.0 - a), PINK_GLOW)
+    a3 = a[:, :, None]
+    np.multiply(canvas, 1.0 - a3, out=canvas)
+    canvas += layer * a3
+    return a
+
+
+def photo_layers(rgb: np.ndarray, alpha: np.ndarray, scale: float,
+                 offset: tuple[int, int], height: int,
+                 width: int) -> tuple[np.ndarray, np.ndarray]:
+    """Режим --mode photo: масштабирует вырезку и красит её под сцену."""
     sh, sw = alpha.shape
     nw, nh = int(round(sw * scale)), int(round(sh * scale))
     rgb_s = cv2.resize(rgb, (nw, nh), interpolation=cv2.INTER_LANCZOS4)
     a_s = cv2.resize(alpha, (nw, nh), interpolation=cv2.INTER_LINEAR)
-
-    # Лёгкий unsharp — компенсируем апскейл.
     rgb_s = np.clip(rgb_s * 1.32 - gauss(rgb_s, 2.2) * 0.32, 0.0, 1.4)
 
     ox, oy = offset
-    full_rgb = np.zeros((h, w, 3), np.float32)
-    full_a = np.zeros((h, w), np.float32)
+    full_rgb = np.zeros((height, width, 3), np.float32)
+    full_a = np.zeros((height, width), np.float32)
     x0, y0 = max(0, ox), max(0, oy)
-    x1, y1 = min(w, ox + nw), min(h, oy + nh)
+    x1, y1 = min(width, ox + nw), min(height, oy + nh)
     if x0 >= x1 or y0 >= y1:
-        raise SystemExit("[fx] персонаж вне холста — проверьте scale/offset")
+        raise SystemExit("[fx] персонаж вне холста — проверьте масштаб")
     full_rgb[y0:y1, x0:x1] = rgb_s[y0 - oy:y1 - oy, x0 - ox:x1 - ox]
     full_a[y0:y1, x0:x1] = a_s[y0 - oy:y1 - oy, x0 - ox:x1 - ox]
 
-    # Цветокоррекция: холодные тени, пурпурный подсвет, контраст.
     graded = full_rgb.copy()
     luma = graded @ np.array([0.2126, 0.7152, 0.0722], np.float32)
     graded = np.clip((graded - 0.48) * 1.20 + 0.46, 0.0, 1.6)
@@ -764,27 +1152,44 @@ def place_character(canvas: np.ndarray, rgb: np.ndarray, alpha: np.ndarray,
     graded[:, :, 2] += (1.0 - luma) * 0.14
     graded[:, :, 1] *= 0.93
     luma2 = (graded @ np.array([0.2126, 0.7152, 0.0722], np.float32))[:, :, None]
-    graded = np.clip(luma2 + (graded - luma2) * 1.12, 0.0, 1.6)   # сочнее
+    graded = np.clip(luma2 + (graded - luma2) * 1.12, 0.0, 1.6)
 
-    # Контровой свет: розовый слева-снизу (от взрыва), голубой справа-сверху.
     gx = cv2.Sobel(full_a, cv2.CV_32F, 1, 0, ksize=5)
     gy = cv2.Sobel(full_a, cv2.CV_32F, 0, 1, ksize=5)
-    edge = np.clip(np.hypot(gx, gy), 0.0, 1.0)
-    edge_band = gauss(edge, 2.0)
+    edge_band = gauss(np.clip(np.hypot(gx, gy), 0.0, 1.0), 2.0)
     for (lx, ly), color, power in (((-0.80, 0.60), PINK_HOT, 0.55),
                                    ((0.78, -0.62), CYAN_RIM, 0.40)):
         facing = np.clip(-(gx * lx + gy * ly), 0.0, None)
         facing = facing / (facing.max() + 1e-6)
         add_rgb(graded, facing * edge_band * power * 1.35, color)
+    return graded, np.clip(full_a, 0.0, 1.0)
 
-    # Наружное свечение силуэта.
-    glow = gauss(full_a, 22.0) * 0.13 + gauss(full_a, 64.0) * 0.06
-    add_rgb(canvas, glow * (1.0 - full_a), PINK_GLOW)
 
-    a3 = np.clip(full_a, 0.0, 1.0)[:, :, None]
-    np.multiply(canvas, 1.0 - a3, out=canvas)
-    canvas += graded * a3
-    return np.clip(full_a, 0.0, 1.0)
+def photo_character(src_bgr: np.ndarray, width: int, height: int, chins: int,
+                    rng: np.random.Generator):
+    """Старый путь: персонаж вырезается с фотографии, а не генерируется."""
+    rgb, alpha_raw = extract_character(src_bgr)
+    rgb, alpha_raw = render_chin_stack(rgb, alpha_raw, chins, rng)
+    ramp = border_ramp(alpha_raw.shape, 34)
+    alpha = alpha_raw * ramp
+    cut_src = ((ramp < 0.55) & (alpha_raw > 0.30)).astype(np.float32)
+    ys, xs = np.nonzero(alpha > 0.35)
+    if ys.size == 0:
+        raise SystemExit("[fx] персонаж не найден на исходнике")
+    sy0, sy1 = int(ys.min()), int(ys.max()) + 1
+    sx0, sx1 = int(xs.min()), int(xs.max()) + 1
+
+    scale = min((height * 0.760) / (sy1 - sy0), (width * 0.880) / (sx1 - sx0))
+    off_x = int(round((width - (sx1 - sx0) * scale) / 2.0))
+    off_y = int(round(height * 0.075))
+    eyes = [(off_x + (p[0] - sx0) * scale, off_y + (p[1] - sy0) * scale)
+            for p in EYE_SRC]
+
+    layer, a = photo_layers(rgb[sy0:sy1, sx0:sx1], alpha[sy0:sy1, sx0:sx1],
+                            scale, (off_x, off_y), height, width)
+    cut_band = paste_scaled(cut_src[sy0:sy1, sx0:sx1], scale, (off_x, off_y),
+                            (height, width))
+    return layer, a, eyes, cut_band
 
 
 # ----------------------------------------------------------------------------
@@ -989,33 +1394,23 @@ def render_dissolve(canvas: np.ndarray, band_mask: np.ndarray,
     add_rgb(canvas, gauss(layer, 14.0) * 0.30, PINK_GLOW)
 
 
-def compose(src_bgr: np.ndarray, width: int, height: int, seed: int,
-            caption: str | None, chins: int = 0) -> np.ndarray:
+def compose(src_bgr, width: int, height: int, seed: int,
+            caption: str | None, chins: int = 10,
+            mode: str = "generate") -> np.ndarray:
     rng = np.random.default_rng(seed)
+    cut_band = None
 
-    rgb, alpha_raw = extract_character(src_bgr)
-    rgb, alpha_raw = render_chin_stack(rgb, alpha_raw, chins, rng)
-    ramp = border_ramp(alpha_raw.shape, 34)
-    alpha = alpha_raw * ramp
-    cut_src = ((ramp < 0.55) & (alpha_raw > 0.30)).astype(np.float32)
-    ys, xs = np.nonzero(alpha > 0.35)
-    if ys.size == 0:
-        raise SystemExit("[fx] персонаж не найден на исходнике")
-    sy0, sy1 = int(ys.min()), int(ys.max()) + 1
-    sx0, sx1 = int(xs.min()), int(xs.max()) + 1
+    if mode == "generate":
+        tx, ty, tz = CAM_TARGET
+        dx, dy, dz = CAM_DIR
+        eye = (tx + dx * CAM_DIST, ty + dy * CAM_DIST, tz + dz * CAM_DIST)
+        char_rgb, char_a, eyes = render_character(
+            width, height, eye, CAM_TARGET, CAM_FOV, chins, RENDER_SSAA)
+        char_rgb = np.clip(char_rgb, 0.0, 8.0)
+    else:
+        char_rgb, char_a, eyes, cut_band = photo_character(
+            src_bgr, width, height, chins, rng)
 
-    # Персонаж занимает не весь кадр — вокруг остаётся космос. Срезы
-    # исходного кадра (левый, правый, верхний) при этом видны, поэтому они
-    # растушёваны и осыпаются искрами — читается как дезинтеграция, а не как
-    # прямая отрубленная грань.
-    scale = min((height * 0.760) / (sy1 - sy0), (width * 0.880) / (sx1 - sx0))
-    off_x = int(round((width - (sx1 - sx0) * scale) / 2.0))
-    off_y = int(round(height * 0.075))
-
-    def to_canvas(pt):
-        return (off_x + (pt[0] - sx0) * scale, off_y + (pt[1] - sy0) * scale)
-
-    eyes = [to_canvas(p) for p in EYE_SRC]
     target = (-width * 0.08, height * 0.470)
 
     # --- дальний план ---
@@ -1030,38 +1425,30 @@ def compose(src_bgr: np.ndarray, width: int, height: int, seed: int,
     render_asteroid_field(canvas, rng)
 
     # --- персонаж ---
-    char_alpha = place_character(canvas, rgb[sy0:sy1, sx0:sx1],
-                                 alpha[sy0:sy1, sx0:sx1], scale,
-                                 (off_x, off_y), rng)
+    char_alpha = composite_character(canvas, char_rgb, char_a)
 
-    # --- лазеры и взрыв поверх ---
-    cut_band = paste_scaled(cut_src[sy0:sy1, sx0:sx1], scale, (off_x, off_y),
-                            (height, width))
-    render_dissolve(canvas, cut_band, rng)
-
+    # --- эффекты поверх ---
+    if cut_band is not None:
+        render_dissolve(canvas, cut_band, rng)
     render_silhouette_flames(canvas, char_alpha, rng)
     render_arcs(canvas, char_alpha, rng)
     render_embers(canvas, rng)
 
     render_beam_rocks(canvas, eyes[0], target, rng)
-    # Оба луча идут параллельно: цель каждого смещена на его же
-    # отступ от центра глаз — тогда видно именно два луча, а не один.
     mid = ((eyes[0][0] + eyes[1][0]) / 2.0, (eyes[0][1] + eyes[1][1]) / 2.0)
-    for eye in eyes:
-        aim = (target[0] + (eye[0] - mid[0]) * 1.35,
-               target[1] + (eye[1] - mid[1]) * 1.35)
-        render_laser(canvas, eye, aim, rng, width=width * 0.0062)
+    for eye_pt in eyes:
+        aim = (target[0] + (eye_pt[0] - mid[0]) * 1.35,
+               target[1] + (eye_pt[1] - mid[1]) * 1.35)
+        render_laser(canvas, eye_pt, aim, rng, width=width * 0.0062)
 
     render_plasma_fire(canvas, rng)
 
-    # Розовый отсвет лучей, «прилипающий» к силуэту персонажа.
     spill = np.zeros((height, width), np.float32)
     cv2.line(spill, (int(eyes[0][0]), int(eyes[0][1])),
              (int(target[0]), int(target[1])), 1.0, int(width * 0.05), cv2.LINE_AA)
     spill = gauss(spill, width * 0.04) * char_alpha
     add_rgb(canvas, spill * 0.10, PINK_HOT)
 
-    # Морда должна быть освещена собственными лучами.
     face = np.zeros((height, width), np.float32)
     cv2.circle(face, (int(eyes[0][0]), int(eyes[0][1])),
                int(width * 0.030), 1.0, -1)
@@ -1089,7 +1476,11 @@ def _clamp(value: int, lo: int, hi: int, name: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="Oliver-200 FX: розовые лазеры из глаз + космос + ультра-эффекты")
-    ap.add_argument("--src", required=True, help="исходное фото персонажа")
+    ap.add_argument("--mode", choices=("generate", "photo"), default="generate",
+                    help="generate — персонаж строится геометрией с нуля; "
+                         "photo — вырезается с фотографии (--src обязателен)")
+    ap.add_argument("--src", default=None,
+                    help="исходное фото (только для --mode photo)")
     ap.add_argument("--out", required=True, help="куда записать PNG")
     ap.add_argument("--width", type=int, default=1400)
     ap.add_argument("--height", type=int, default=2000)
@@ -1109,21 +1500,34 @@ def main(argv: list[str] | None = None) -> int:
     seed = _clamp(args.seed, 0, 2 ** 31 - 1, "--seed")
     chins = _clamp(args.chins, 0, 40, "--chins")
 
-    src_path = _safe_path(args.src, must_exist=True)
     out_path = _safe_path(args.out, must_exist=False)
 
-    src = load_image(src_path)
-    print(f"[fx] {SIGNATURE}: исходник {src.shape[1]}x{src.shape[0]}")
+    src = None
+    if args.mode == "photo":
+        if not args.src:
+            raise SystemExit("[fx] --mode photo требует --src")
+        src = load_image(_safe_path(args.src, must_exist=True))
+        print(f"[fx] {SIGNATURE}: фото {src.shape[1]}x{src.shape[0]}")
+    else:
+        print(f"[fx] {SIGNATURE}: персонаж генерируется, фото не используется")
 
     if args.cutout:
         cut_path = _safe_path(args.cutout, must_exist=False)
         if cut_path == out_path:
             raise SystemExit("[fx] --cutout и --out не могут совпадать")
-        rgb, alpha = extract_character(src)
-        rgb, alpha = render_chin_stack(rgb, alpha, chins,
-                                       np.random.default_rng(seed))
-        # За силуэтом в RGB лежит исходный зигзаг: обнуляем его, иначе
-        # просмотрщики без поддержки альфы покажут старый фон.
+        rng_cut = np.random.default_rng(seed)
+        if args.mode == "generate":
+            tx, ty, tz = CAM_TARGET
+            dx, dy, dz = CAM_DIR
+            eye = (tx + dx * CAM_DIST, ty + dy * CAM_DIST, tz + dz * CAM_DIST)
+            col, alpha, _ = render_character(width, height, eye, CAM_TARGET,
+                                             CAM_FOV, chins, RENDER_SSAA)
+            rgb = np.clip(col / (1.0 + col) * 1.25, 0.0, 1.0)
+        else:
+            rgb, alpha = extract_character(src)
+            rgb, alpha = render_chin_stack(rgb, alpha, chins, rng_cut)
+        # RGB за силуэтом обнуляем: просмотрщики без поддержки альфы иначе
+        # покажут мусор (в режиме photo — исходный зигзаг).
         visible = (alpha > 0.004)[:, :, None]
         rgba = np.dstack([
             (np.clip(rgb * visible, 0, 1) * 255).astype(np.uint8)[:, :, ::-1],
@@ -1132,7 +1536,7 @@ def main(argv: list[str] | None = None) -> int:
         save_image_atomic(cut_path, rgba)
         print(f"[fx] вырезка: {cut_path}")
 
-    out = compose(src, width, height, seed, args.caption, chins)
+    out = compose(src, width, height, seed, args.caption, chins, args.mode)
     bgr = (np.clip(out, 0, 1) * 255.0 + 0.5).astype(np.uint8)[:, :, ::-1]
     save_image_atomic(out_path, bgr)
     print(f"[fx] готово: {out_path} ({width}x{height})")
