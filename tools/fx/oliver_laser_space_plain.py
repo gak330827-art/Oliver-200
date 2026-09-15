@@ -274,7 +274,39 @@ class Scene:
 
 
 # ----------------------------------------------------------------- персонаж
-def build(chins: int = 10):
+# Блочный шрифт 3x5: надпись на кепке набирается коробками, а не текстурой.
+BLOCK_FONT = {
+    "O": ("111", "101", "101", "101", "111"),
+    "L": ("100", "100", "100", "100", "111"),
+    "I": ("111", "010", "010", "010", "111"),
+    "V": ("101", "101", "101", "101", "010"),
+    "E": ("111", "100", "110", "100", "111"),
+    "R": ("110", "101", "110", "101", "101"),
+    "2": ("111", "001", "111", "100", "111"),
+    "0": ("111", "101", "101", "101", "111"),
+    "-": ("000", "000", "111", "000", "000"),
+    " ": ("000", "000", "000", "000", "000"),
+}
+
+
+def block_text_cells(text: str):
+    """Ячейки надписи: (колонка, строка) для каждого зажжённого пикселя."""
+    cells, col = [], 0
+    for ch in text.upper():
+        glyph = BLOCK_FONT.get(ch)
+        if glyph is None:
+            col += 4
+            continue
+        for row, bits in enumerate(glyph):
+            for i, bit in enumerate(bits):
+                if bit == "1":
+                    cells.append((col + i, row))
+        col += 4
+    width = max(col - 1, 1)
+    return cells, width
+
+
+def build(chins: int = 10, cap_text: str = "OLIVER"):
     """Собирает персонажа из коробок. Все размеры выведены из пропорций,
     чтобы правки не рассыпали остальную фигуру."""
     sc = Scene()
@@ -336,8 +368,19 @@ def build(chins: int = 10):
         H((0.60 * sx, 0.98, -0.10), (0.42, 0.56, 0.30), M_FUR)      # уши
     for sx in (-1, 1):
         H((0.44 * sx - 0.06, 0.20, 0.90), (0.44, 0.14, 0.10), M_DARK)  # глаза
+    for sx in (-1, 1):                                       # насупленные брови
+        H((0.44 * sx - 0.06, 0.34, 0.88), (0.50, 0.09, 0.09), M_DARK)
     H((0.0, 0.86, -0.05), (2.08, 0.62, 1.86), M_CAP)        # кепка
     H((-0.06, 0.62, 1.20), (1.94, 0.18, 1.30), M_CAP)       # козырёк
+
+    if cap_text:                                             # надпись на кепке
+        cells, tw = block_text_cells(cap_text)
+        cell = min(1.34 / max(tw, 1), 0.072)
+        x_left = -0.5 * tw * cell
+        y_top = 1.02
+        for cx_i, row in cells:
+            H((x_left + (cx_i + 0.5) * cell, y_top - (row + 0.5) * cell, 0.905),
+              (cell * 0.92, cell * 0.92, 0.07), M_SOLE)
 
     # цепь и подвеска
     for k in range(18):
@@ -417,42 +460,113 @@ def fbm3(p,oct=4,freq=1.0,gain=0.5):
     return tot/norm
 
 # ----------------------------------------------------------------- материалы
-def albedo(mat, L, W):
+def albedo(mat, L, W, pal):
+    """Процедурная расцветка детали; базовые тона берутся из палитры."""
     n=L.shape[0]
     out=np.zeros((n,3),np.float32)
+    C=lambda k: np.array(pal[k],np.float32)
     if mat==M_FUR:
         t=fbm3(W*1.25+17.0,4)
         v=np.clip((t-0.36)/0.34,0,1); v=v*v*(3-2*v)
-        dark=np.array([0.36,0.10,0.44],np.float32)
-        mid =np.array([0.68,0.24,0.76],np.float32)
-        lite=np.array([0.92,0.62,0.95],np.float32)
+        dark,mid,lite=C("fur_dark"),C("fur_mid"),C("fur_lite")
         out=dark+(mid-dark)*v[:,None]
         hi=np.clip((t-0.66)/0.22,0,1)
         out=out+(lite-out)*(hi*hi)[:,None]
     elif mat==M_SHIRT:
         t=fbm3(W*3.5+3.0,3)
-        base=np.array([0.40,0.19,0.15],np.float32)
-        out=base*(0.85+0.30*t)[:,None]
+        out=C("shirt")*(0.85+0.30*t)[:,None]
     elif mat==M_CAP:
         t=fbm3(W*6.0+41.0,3)
-        out=np.array([0.72,0.72,0.70],np.float32)*(0.88+0.22*t)[:,None]
+        out=C("cap")*(0.88+0.22*t)[:,None]
     elif mat==M_MUZZLE:
         t=fbm3(W*4.0+7.0,3)
-        out=np.array([0.82,0.80,0.80],np.float32)*(0.80+0.30*t)[:,None]
+        out=C("muzzle")*(0.80+0.30*t)[:,None]
     elif mat==M_DARK:
-        out[:]=np.array([0.045,0.030,0.055],np.float32)
+        out[:]=C("dark")
     elif mat==M_SHOE:
-        out[:]=np.array([0.14,0.58,0.62],np.float32)
+        out[:]=C("shoe")
     elif mat==M_SOLE:
-        out[:]=np.array([0.88,0.90,0.92],np.float32)
+        out[:]=C("sole")
     elif mat==M_GOLD:
-        out[:]=np.array([0.95,0.70,0.16],np.float32)
+        out[:]=C("gold")
     elif mat==M_BOWL:
-        out[:]=np.array([0.18,0.50,0.30],np.float32)
+        out[:]=C("bowl")
     elif mat==M_GARLIC:
         t=fbm3(W*7.0+90.0,3)
-        out=np.array([0.92,0.90,0.86],np.float32)*(0.82+0.25*t)[:,None]
+        out=C("garlic")*(0.82+0.25*t)[:,None]
     return out
+
+
+PALETTE_DEFAULT = {
+    "fur_dark": (0.36, 0.10, 0.44), "fur_mid": (0.68, 0.24, 0.76),
+    "fur_lite": (0.92, 0.62, 0.95), "shirt": (0.40, 0.19, 0.15),
+    "cap": (0.72, 0.72, 0.70), "muzzle": (0.82, 0.80, 0.80),
+    "dark": (0.05, 0.03, 0.06), "shoe": (0.14, 0.58, 0.62),
+    "sole": (0.88, 0.90, 0.92), "gold": (0.95, 0.70, 0.16),
+    "bowl": (0.18, 0.50, 0.30), "garlic": (0.92, 0.90, 0.86),
+}
+
+
+def sample_palette(src_bgr: np.ndarray) -> dict:
+    """Снимает палитру персонажа с фотографии.
+
+    Пиксели силуэта раскладываются по цветовым семьям (мех, футболка,
+    нейтральный верх — кепка, нейтральная середина — морда, белое, бирюза,
+    золото, зелень, тень), и из каждой берутся устойчивые перцентили по
+    яркости. Дальше эти цвета идут в материалы 3D-модели: геометрия
+    генерируется, а расцветка — измеренная, не выдуманная.
+    """
+    rgb, alpha = extract_character(src_bgr)
+    h, w = alpha.shape
+    mask = alpha > 0.7
+    hsv = cv2.cvtColor((np.clip(rgb, 0, 1) * 255).astype(np.uint8),
+                       cv2.COLOR_RGB2HSV)
+    hue = hsv[:, :, 0].astype(np.float32) * 2.0
+    sat = hsv[:, :, 1].astype(np.float32) / 255.0
+    val = hsv[:, :, 2].astype(np.float32) / 255.0
+    ny = np.mgrid[0:h, 0:w][0].astype(np.float32) / h
+
+    families = {
+        "fur":     mask & (hue > 265) & (hue < 330) & (sat > 0.30) & (val > 0.12),
+        "shirt":   mask & ((hue < 40) | (hue > 352)) & (sat > 0.18) & (sat < 0.85)
+                        & (val > 0.10) & (val < 0.62),
+        "cap":     mask & (sat < 0.18) & (val > 0.30) & (ny < 0.16),
+        "muzzle":  mask & (sat < 0.20) & (val > 0.30) & (ny >= 0.12) & (ny < 0.30),
+        "white":   mask & (sat < 0.14) & (val > 0.72),
+        "teal":    mask & (hue > 160) & (hue < 205) & (sat > 0.25),
+        "gold":    mask & (hue > 35) & (hue < 62) & (sat > 0.45) & (val > 0.35),
+        "green":   mask & (hue > 85) & (hue < 160) & (sat > 0.25),
+        "dark":    mask & (val < 0.14),
+    }
+
+    def pick(name, q, gain=1.0):
+        px = rgb[families[name]]
+        if px.shape[0] < 120:
+            return None
+        lum = px @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+        val_ = px[np.argsort(lum)[int(q * (px.shape[0] - 1))]]
+        return tuple(float(np.clip(c * gain, 0.0, 1.0)) for c in val_)
+
+    # Фото уже несёт собственный свет, поэтому небольшой подъём: цвет идёт
+    # в альбедо, которое мы освещаем заново.
+    wanted = {
+        "fur_dark": ("fur", 0.15, 1.05), "fur_mid": ("fur", 0.50, 1.10),
+        "fur_lite": ("fur", 0.88, 1.15), "shirt": ("shirt", 0.50, 1.15),
+        "cap": ("cap", 0.50, 1.25), "muzzle": ("muzzle", 0.50, 1.25),
+        "dark": ("dark", 0.50, 1.00), "shoe": ("teal", 0.60, 1.35),
+        "sole": ("white", 0.50, 1.05), "gold": ("gold", 0.70, 1.25),
+        "bowl": ("green", 0.88, 1.30), "garlic": ("white", 0.88, 1.00),
+    }
+    pal = dict(PALETTE_DEFAULT)
+    taken = []
+    for key, (fam, q, gain) in wanted.items():
+        got = pick(fam, q, gain)
+        if got is not None:
+            pal[key] = got
+            taken.append(key)
+    print(f"[fx] палитра снята с фото: {len(taken)} из {len(wanted)} цветов")
+    return pal
+
 
 SPEC = {M_FUR:0.12, M_SHIRT:0.05, M_CAP:0.10, M_MUZZLE:0.14, M_DARK:0.35,
         M_SHOE:0.30, M_SOLE:0.22, M_GOLD:0.85, M_BOWL:0.25, M_GARLIC:0.15}
@@ -533,8 +647,10 @@ def shadow_map(sc, light_dir, size=1200):
         upd=m&(d<sub); sub[upd]=d[upd]
     return zb,B,lo,span
 
-def render_character(W,H,cam_eye,cam_target,fov,chins=10,ssaa=2):
-    sc,eyes=build(chins)
+def render_character(W,H,cam_eye,cam_target,fov,chins=10,ssaa=2,pal=None,
+                     cap_text='OLIVER'):
+    pal = PALETTE_DEFAULT if pal is None else pal
+    sc,eyes=build(chins,cap_text)
     RW,RH=W*ssaa,H*ssaa
     R,eye=look_at(cam_eye,cam_target)
     zbuf,idbuf,(sx,sy,z)=depth_pass(sc,R,eye,RW,RH,fov)
@@ -567,7 +683,7 @@ def render_character(W,H,cam_eye,cam_target,fov,chins=10,ssaa=2):
         tri=F[t]
         Pw=iw@V[tri]; Pl=iw@L[tri]
         N=sc.N[t]
-        alb=albedo(int(sc.M[t]),Pl,Pw)
+        alb=albedo(int(sc.M[t]),Pl,Pw,pal)
         # тень
         S=Pw@SB.T
         u=(S[:,0]-slo[0])/sspan[0]*(smap.shape[0]-1)
@@ -1396,16 +1512,18 @@ def render_dissolve(canvas: np.ndarray, band_mask: np.ndarray,
 
 def compose(src_bgr, width: int, height: int, seed: int,
             caption: str | None, chins: int = 10,
-            mode: str = "generate") -> np.ndarray:
+            mode: str = "generate", cap_text: str = "OLIVER") -> np.ndarray:
     rng = np.random.default_rng(seed)
     cut_band = None
 
     if mode == "generate":
+        pal = PALETTE_DEFAULT if src_bgr is None else sample_palette(src_bgr)
         tx, ty, tz = CAM_TARGET
         dx, dy, dz = CAM_DIR
         eye = (tx + dx * CAM_DIST, ty + dy * CAM_DIST, tz + dz * CAM_DIST)
         char_rgb, char_a, eyes = render_character(
-            width, height, eye, CAM_TARGET, CAM_FOV, chins, RENDER_SSAA)
+            width, height, eye, CAM_TARGET, CAM_FOV, chins, RENDER_SSAA, pal,
+            cap_text)
         char_rgb = np.clip(char_rgb, 0.0, 8.0)
     else:
         char_rgb, char_a, eyes, cut_band = photo_character(
@@ -1480,13 +1598,17 @@ def main(argv: list[str] | None = None) -> int:
                     help="generate — персонаж строится геометрией с нуля; "
                          "photo — вырезается с фотографии (--src обязателен)")
     ap.add_argument("--src", default=None,
-                    help="исходное фото (только для --mode photo)")
+                    help="фото персонажа. В режиме generate с него снимается "
+                         "палитра (сама фигура всё равно строится геометрией); "
+                         "в режиме photo персонаж с него вырезается")
     ap.add_argument("--out", required=True, help="куда записать PNG")
     ap.add_argument("--width", type=int, default=1400)
     ap.add_argument("--height", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=2077)
     ap.add_argument("--chins", type=int, default=10,
                     help="сколько двойных подбородков нарастить (0 — выключить)")
+    ap.add_argument("--cap-text", default="OLIVER",
+                    help="надпись на кепке блочным шрифтом (пусто — без неё)")
     ap.add_argument("--caption", default=None,
                     help="крупная подпись сверху (например «Я ФИКСИРУЮ»)")
     ap.add_argument("--cutout", default=None,
@@ -1503,13 +1625,18 @@ def main(argv: list[str] | None = None) -> int:
     out_path = _safe_path(args.out, must_exist=False)
 
     src = None
-    if args.mode == "photo":
-        if not args.src:
-            raise SystemExit("[fx] --mode photo требует --src")
+    if args.src:
         src = load_image(_safe_path(args.src, must_exist=True))
-        print(f"[fx] {SIGNATURE}: фото {src.shape[1]}x{src.shape[0]}")
+    if args.mode == "photo":
+        if src is None:
+            raise SystemExit("[fx] --mode photo требует --src")
+        print(f"[fx] {SIGNATURE}: персонаж вырезается с фото "
+              f"{src.shape[1]}x{src.shape[0]}")
+    elif src is None:
+        print(f"[fx] {SIGNATURE}: персонаж генерируется, палитра по умолчанию")
     else:
-        print(f"[fx] {SIGNATURE}: персонаж генерируется, фото не используется")
+        print(f"[fx] {SIGNATURE}: персонаж генерируется, палитра снимается "
+              f"с фото {src.shape[1]}x{src.shape[0]}")
 
     if args.cutout:
         cut_path = _safe_path(args.cutout, must_exist=False)
@@ -1520,8 +1647,10 @@ def main(argv: list[str] | None = None) -> int:
             tx, ty, tz = CAM_TARGET
             dx, dy, dz = CAM_DIR
             eye = (tx + dx * CAM_DIST, ty + dy * CAM_DIST, tz + dz * CAM_DIST)
+            pal = PALETTE_DEFAULT if src is None else sample_palette(src)
             col, alpha, _ = render_character(width, height, eye, CAM_TARGET,
-                                             CAM_FOV, chins, RENDER_SSAA)
+                                             CAM_FOV, chins, RENDER_SSAA, pal,
+                                             args.cap_text)
             rgb = np.clip(col / (1.0 + col) * 1.25, 0.0, 1.0)
         else:
             rgb, alpha = extract_character(src)
@@ -1536,7 +1665,8 @@ def main(argv: list[str] | None = None) -> int:
         save_image_atomic(cut_path, rgba)
         print(f"[fx] вырезка: {cut_path}")
 
-    out = compose(src, width, height, seed, args.caption, chins, args.mode)
+    out = compose(src, width, height, seed, args.caption, chins, args.mode,
+                  args.cap_text)
     bgr = (np.clip(out, 0, 1) * 255.0 + 0.5).astype(np.uint8)[:, :, ::-1]
     save_image_atomic(out_path, bgr)
     print(f"[fx] готово: {out_path} ({width}x{height})")
