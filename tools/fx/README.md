@@ -23,30 +23,31 @@
 ## Запуск
 
 ```bash
-# персонаж генерируется, палитра снимается с вашего фото
+# с фотографией: персонаж вырезается с неё, сверху крупная подпись
 python3 tools/fx/oliver_laser_space_plain.py \
-    --src photo.jpg --out out/oliver_laser_space.png
+    --src photo.jpg --caption "Я ФИКСИРУЮ" --out out/oliver_laser_space.png
 
-# без --src — та же модель, но палитра по умолчанию
-python3 tools/fx/oliver_laser_space_plain.py --out out/default_colors.png
+# без --src: персонаж строится геометрией с нуля
+python3 tools/fx/oliver_laser_space_plain.py --out out/generated.png
+
+# сгенерированная модель, но в цветах с вашего фото
+python3 tools/fx/oliver_laser_space_plain.py \
+    --mode generate --src photo.jpg --out out/generated_your_colors.png
 
 # то же самое из зашифрованного файла
 python3 tools/fx/oliver_laser_space_secure.py \
-    --src photo.jpg --out out/oliver_laser_space.png
-
-# старый режим: персонаж вырезается с фотографии
-python3 tools/fx/oliver_laser_space_plain.py \
-    --mode photo --src photo.jpg --out out/from_photo.png
+    --src photo.jpg --caption "Я ФИКСИРУЮ" --out out/oliver_laser_space.png
 
 # проверить контейнер, ничего не рендеря
 python3 tools/fx/oliver_laser_space_secure.py --verify
 ```
 
-Ключи: `--mode generate|photo` (по умолчанию `generate`),
+Ключи: `--mode auto|generate|photo` (по умолчанию `auto`: `photo`, если
+задан `--src`, иначе `generate`),
 `--width` / `--height` (по умолчанию 1400×2000; 256…6000, не больше
 30 Мпикс), `--seed` (другой seed — другая туманность, звёзды, молнии и искры),
-`--chins N` (сколько двойных подбородков нарастить, по умолчанию 10, `0` —
-выключить), `--cap-text OLIVER` (надпись на кепке блочным шрифтом),
+`--chins N` (сколько двойных подбородков нарастить, по умолчанию `0` —
+выключено), `--cap-text OLIVER` (надпись на кепке блочным шрифтом),
 `--caption "Я ФИКСИРУЮ"` (крупная фонк-подпись сверху),
 `--cutout cut.png` (сохранить вырезанного персонажа отдельным PNG с альфой).
 
@@ -155,5 +156,5 @@ python3 tools/fx/oliver_laser_space_secure.py --verify     # с той же фр
 | Файл | Что это |
 |---|---|
 | `oliver_laser_space.png` | основной кадр 1400×2000 |
-| `oliver_laser_space_caption.png` | он же с подписью «Я ФИКСИРУЮ» |
+| `oliver_laser_space_notext.png` | он же без подписи |
 | `oliver_cutout.png` | сгенерированный персонаж отдельно, PNG с альфой |

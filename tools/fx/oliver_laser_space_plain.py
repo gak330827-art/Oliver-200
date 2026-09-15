@@ -1297,7 +1297,7 @@ def photo_character(src_bgr: np.ndarray, width: int, height: int, chins: int,
 
     scale = min((height * 0.760) / (sy1 - sy0), (width * 0.880) / (sx1 - sx0))
     off_x = int(round((width - (sx1 - sx0) * scale) / 2.0))
-    off_y = int(round(height * 0.075))
+    off_y = int(round(height * 0.100))
     eyes = [(off_x + (p[0] - sx0) * scale, off_y + (p[1] - sy0) * scale)
             for p in EYE_SRC]
 
@@ -1375,7 +1375,7 @@ def draw_caption(img: np.ndarray, text: str) -> np.ndarray:
     font_path = next((c for c in candidates if os.path.isfile(c)), None)
     if font_path is None:
         raise SystemExit("[fx] не нашёл жирный TTF с кириллицей для подписи")
-    size = int(w * 0.105)
+    size = int(w * 0.098)
     while size > 10:
         font = ImageFont.truetype(font_path, size)
         bbox = draw.textbbox((0, 0), text, font=font, stroke_width=max(2, size // 16))
@@ -1385,7 +1385,7 @@ def draw_caption(img: np.ndarray, text: str) -> np.ndarray:
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
     x = (w - tw) / 2 - bbox[0]
-    y = h * 0.028 - bbox[1]
+    y = h * 0.022 - bbox[1]
     sw = max(2, size // 16)
     for dx, dy, col in ((-11, 4, (255, 30, 165)), (11, -4, (70, 225, 255))):
         draw.text((x + dx, y + dy), text, font=font, fill=col)
@@ -1594,9 +1594,12 @@ def _clamp(value: int, lo: int, hi: int, name: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="Oliver-200 FX: розовые лазеры из глаз + космос + ультра-эффекты")
-    ap.add_argument("--mode", choices=("generate", "photo"), default="generate",
-                    help="generate — персонаж строится геометрией с нуля; "
-                         "photo — вырезается с фотографии (--src обязателен)")
+    ap.add_argument("--mode", choices=("auto", "generate", "photo"),
+                    default="auto",
+                    help="auto — photo, если задан --src, иначе generate; "
+                         "generate — персонаж строится геометрией с нуля "
+                         "(с --src с фото снимается только палитра); "
+                         "photo — персонаж вырезается с фотографии")
     ap.add_argument("--src", default=None,
                     help="фото персонажа. В режиме generate с него снимается "
                          "палитра (сама фигура всё равно строится геометрией); "
@@ -1605,7 +1608,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--width", type=int, default=1400)
     ap.add_argument("--height", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=2077)
-    ap.add_argument("--chins", type=int, default=10,
+    ap.add_argument("--chins", type=int, default=0,
                     help="сколько двойных подбородков нарастить (0 — выключить)")
     ap.add_argument("--cap-text", default="OLIVER",
                     help="надпись на кепке блочным шрифтом (пусто — без неё)")
@@ -1627,6 +1630,8 @@ def main(argv: list[str] | None = None) -> int:
     src = None
     if args.src:
         src = load_image(_safe_path(args.src, must_exist=True))
+    if args.mode == "auto":
+        args.mode = "photo" if src is not None else "generate"
     if args.mode == "photo":
         if src is None:
             raise SystemExit("[fx] --mode photo требует --src")
