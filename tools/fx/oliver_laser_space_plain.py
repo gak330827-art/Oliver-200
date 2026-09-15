@@ -901,7 +901,7 @@ def render_portal_ring(canvas: np.ndarray, cx: float, cy: float,
     ang = np.arctan2(v, u)
     flicker = 0.7 + 0.3 * np.sin(ang * 9.0 + rad * 18.0)
     total = gauss((band + inner) * flicker, 1.6)
-    add_rgb(canvas, total * 0.40, PINK_GLOW)
+    add_rgb(canvas, total * 0.28, PINK_GLOW)
     add_rgb(canvas, gauss(band, 7.0) * 0.16, np.array([0.70, 0.25, 1.00], np.float32))
 
 
@@ -1211,6 +1211,153 @@ def render_silhouette_flames(canvas: np.ndarray, char_alpha: np.ndarray,
     add_rgb(canvas, (acc ** 5.0) * 0.60, np.array([1.0, 0.88, 0.80], np.float32))
 
 
+def render_comets(canvas: np.ndarray, rng: np.random.Generator,
+                  count: int = 5) -> None:
+    """Кометы с горящей головой и растворяющимся хвостом."""
+    h, w = canvas.shape[:2]
+    head = np.zeros((h, w), np.float32)
+    tail = np.zeros((h, w), np.float32)
+    for _ in range(count):
+        x0 = float(rng.uniform(-0.1, 1.1)) * w
+        y0 = float(rng.uniform(-0.05, 0.85)) * h
+        ang = float(rng.uniform(np.deg2rad(150), np.deg2rad(210)))
+        length = float(rng.uniform(0.10, 0.34)) * w
+        x1 = x0 - np.cos(ang) * length
+        y1 = y0 - np.sin(ang) * length
+        steps = 26
+        for i in range(steps):
+            t = i / (steps - 1.0)
+            px = int(x0 + (x1 - x0) * t)
+            py = int(y0 + (y1 - y0) * t)
+            cv2.circle(tail, (px, py), max(1, int(3.0 * (1.0 - t))),
+                       float((1.0 - t) ** 2.0), -1)
+        cv2.circle(head, (int(x0), int(y0)), 3, 1.0, -1)
+    add_rgb(canvas, gauss(tail, 1.4) * 0.55, np.array([1.0, 0.72, 0.95], np.float32))
+    add_rgb(canvas, gauss(tail, 8.0) * 0.25, PINK_GLOW)
+    add_rgb(canvas, gauss(head, 1.2) * 1.30, PINK_CORE)
+    add_rgb(canvas, gauss(head, 9.0) * 0.55, PINK_HOT)
+
+
+def render_rune_ring(canvas: np.ndarray, cx: float, cy: float, rx: float,
+                     ry: float, rng: np.random.Generator,
+                     ticks: int = 40) -> None:
+    """Кольцо рун: штрихи и блоки по эллипсу, как вращающийся круг призыва."""
+    h, w = canvas.shape[:2]
+    layer = np.zeros((h, w), np.float32)
+    phase = float(rng.uniform(0, 2 * np.pi))
+    for k in range(ticks):
+        a = phase + 2 * np.pi * k / ticks
+        long_tick = (k % 5 == 0)
+        r0, r1 = (0.93, 1.09) if long_tick else (0.97, 1.04)
+        p0 = (int(cx + np.cos(a) * rx * r0), int(cy + np.sin(a) * ry * r0))
+        p1 = (int(cx + np.cos(a) * rx * r1), int(cy + np.sin(a) * ry * r1))
+        cv2.line(layer, p0, p1, 1.0 if long_tick else 0.55,
+                 3 if long_tick else 2, cv2.LINE_AA)
+        if long_tick:                       # «глиф» — короткая ступенчатая метка
+            gx = int(cx + np.cos(a) * rx * 1.17)
+            gy = int(cy + np.sin(a) * ry * 1.17)
+            size = max(2, int(w * 0.004))
+            cv2.rectangle(layer, (gx - size, gy - size), (gx + size, gy + size),
+                          0.8, -1)
+    add_rgb(canvas, gauss(layer, 1.0) * 0.85, PINK_CORE)
+    add_rgb(canvas, gauss(layer, 6.0) * 0.55, PINK_HOT)
+    add_rgb(canvas, gauss(layer, 22.0) * 0.30, PINK_GLOW)
+
+
+def depth_of_field(canvas: np.ndarray, amount: float = 0.55,
+                   sigma: float = 3.4) -> None:
+    """Лёгкая расфокусировка дальнего плана — персонаж читается резче."""
+    np.copyto(canvas, canvas * (1.0 - amount) + gauss(canvas, sigma) * amount)
+
+
+def render_echoes(canvas: np.ndarray, layer: np.ndarray, alpha: np.ndarray,
+                  direction: tuple[float, float], count: int = 3,
+                  step: float = 26.0) -> None:
+    """Фантомные копии силуэта позади — след от рывка."""
+    h, w = canvas.shape[:2]
+    dx, dy = direction
+    norm = float(np.hypot(dx, dy)) or 1.0
+    dx, dy = dx / norm, dy / norm
+    for i in range(count, 0, -1):
+        off_x, off_y = int(-dx * step * i), int(-dy * step * i)
+        a = np.roll(np.roll(alpha, off_y, axis=0), off_x, axis=1)
+        if off_y > 0:
+            a[:off_y, :] = 0.0
+        elif off_y < 0:
+            a[off_y:, :] = 0.0
+        if off_x > 0:
+            a[:, :off_x] = 0.0
+        elif off_x < 0:
+            a[:, off_x:] = 0.0
+        fade = (1.0 - i / (count + 1.0)) ** 2.0 * 0.55
+        add_rgb(canvas, gauss(a, 6.0) * fade, PINK_HOT)
+        add_rgb(canvas, gauss(a, 24.0) * fade * 0.6, PINK_GLOW)
+
+
+def render_god_rays(canvas: np.ndarray, cx: float, cy: float,
+                    occluder: np.ndarray | None = None,
+                    samples: int = 16, spread: float = 0.34,
+                    weight: float = 0.30) -> None:
+    """Объёмные лучи: яркие места растягиваются от точки источника."""
+    h, w = canvas.shape[:2]
+    bright = np.clip(canvas.max(axis=2) - 0.90, 0.0, None)
+    if float(bright.max()) <= 0.0:
+        return
+    acc = np.zeros((h, w), np.float32)
+    total = 0.0
+    for i in range(1, samples + 1):
+        scale = 1.0 + spread * i / samples
+        mat = cv2.getRotationMatrix2D((float(cx), float(cy)), 0.0, scale)
+        warped = cv2.warpAffine(bright, mat, (w, h), flags=cv2.INTER_LINEAR,
+                                borderMode=cv2.BORDER_CONSTANT, borderValue=0.0)
+        k = (1.0 - i / (samples + 1.0)) ** 1.6
+        acc += warped * k
+        total += k
+    acc /= max(total, 1e-6)
+    acc = gauss(acc, 3.0)
+    if occluder is not None:          # персонаж загораживает лучи, а не тонет в них
+        acc *= (1.0 - np.clip(occluder, 0.0, 1.0))
+    add_rgb(canvas, acc * weight, PINK_HOT)
+    add_rgb(canvas, acc * weight * 0.40, PINK_CORE)
+
+
+def render_anamorphic(canvas: np.ndarray, cx: float, cy: float, power: float,
+                      length: float) -> None:
+    """Анаморфный блик: длинная горизонтальная полоса плюс призрачные диски."""
+    h, w = canvas.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    streak = np.exp(-((xx - cx) ** 2) / (2 * length ** 2)
+                    - ((yy - cy) ** 2) / (2 * (h * 0.0030) ** 2))
+    add_rgb(canvas, streak * power, np.array([0.45, 0.72, 1.00], np.float32))
+    add_rgb(canvas, streak ** 3 * power * 0.7, PINK_CORE)
+    mx, my = w * 0.5, h * 0.5
+    for t, rad, col in ((0.55, 0.030, (1.00, 0.45, 0.85)),
+                        (1.35, 0.018, (0.40, 0.85, 1.00)),
+                        (1.95, 0.042, (0.85, 0.50, 1.00))):
+        gx = cx + (mx - cx) * t
+        gy = cy + (my - cy) * t
+        d = np.hypot(xx - gx, yy - gy) / (w * rad)
+        ghost = np.clip(1.0 - np.abs(d - 1.0) / 0.45, 0.0, 1.0) ** 2
+        add_rgb(canvas, ghost * power * 0.30, np.array(col, np.float32))
+
+
+def render_shockwave(canvas: np.ndarray, cx: float, cy: float, radius: float,
+                     thickness: float, strength: float) -> None:
+    """Ударная волна с рефракцией: кольцо реально изгибает картинку."""
+    h, w = canvas.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    dx, dy = xx - cx, yy - cy
+    d = np.maximum(np.hypot(dx, dy), 1e-3)
+    prof = np.exp(-((d - radius) ** 2) / (2 * thickness ** 2))
+    push = prof * strength
+    warped = cv2.remap(canvas, (xx + dx / d * push).astype(np.float32),
+                       (yy + dy / d * push).astype(np.float32),
+                       cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    np.copyto(canvas, warped)
+    add_rgb(canvas, prof ** 2 * 0.22, PINK_CORE)
+    add_rgb(canvas, prof * 0.12, PINK_GLOW)
+
+
 def render_plasma_fire(canvas: np.ndarray, rng: np.random.Generator) -> None:
     """Плазменное пламя вдоль нижней кромки кадра."""
     h, w = canvas.shape[:2]
@@ -1350,7 +1497,16 @@ def post_process(img: np.ndarray, rng: np.random.Generator, *,
     out = out / (1.0 + out) * 1.14
     luma = (out @ np.array([0.2126, 0.7152, 0.0722], np.float32))[:, :, None]
     out = np.clip(luma + (out - luma) * 1.26, 0.0, 1.0)
-    out = np.clip((out - 0.46) * 1.10 + 0.50, 0.0, 1.0)     # контраст, но светлее
+    out = np.clip((out - 0.46) * 1.19 + 0.48, 0.0, 1.0)     # контраст, но светлее
+
+    # Развёртка ЭЛТ и полосы VHS.
+    scan = 1.0 - 0.032 * (0.5 + 0.5 * np.sin(np.arange(h, dtype=np.float32) * np.pi))
+    out *= scan[:, None, None]
+    for _ in range(2):
+        y = int(rng.integers(0, h - 30))
+        hh = int(rng.integers(6, 20))
+        out[y:y + hh] = np.clip(out[y:y + hh] * float(rng.uniform(1.03, 1.09)),
+                                0.0, 1.0)
 
     # Зерно.
     grain = rng.normal(0.0, 0.016, (h, w, 1)).astype(np.float32)
@@ -1540,9 +1696,15 @@ def compose(src_bgr, width: int, height: int, seed: int,
     render_warp_streaks(canvas, eyes[0][0], eyes[0][1], rng)
     render_portal_ring(canvas, width * 0.52, height * 0.60,
                        width * 0.52, height * 0.19, rng)
+    render_rune_ring(canvas, width * 0.52, height * 0.60,
+                     width * 0.40, height * 0.145, rng)
+    render_comets(canvas, rng)
     render_asteroid_field(canvas, rng)
+    depth_of_field(canvas, 0.40, height * 0.0014)
 
-    # --- персонаж ---
+    # --- персонаж: сначала фантомный след, потом он сам ---
+    render_echoes(canvas, char_rgb, char_a,
+                  (target[0] - eyes[0][0], target[1] - eyes[0][1]))
     char_alpha = composite_character(canvas, char_rgb, char_a)
 
     # --- эффекты поверх ---
@@ -1559,7 +1721,13 @@ def compose(src_bgr, width: int, height: int, seed: int,
                target[1] + (eye_pt[1] - mid[1]) * 1.35)
         render_laser(canvas, eye_pt, aim, rng, width=width * 0.0062)
 
+    render_god_rays(canvas, eyes[0][0], eyes[0][1], occluder=char_alpha)
+    render_anamorphic(canvas, eyes[0][0], eyes[0][1],
+                      power=0.22, length=width * 0.20)
     render_plasma_fire(canvas, rng)
+    render_shockwave(canvas, width * 0.52, height * 0.52,
+                     radius=width * 0.46, thickness=width * 0.011,
+                     strength=width * 0.008)
 
     spill = np.zeros((height, width), np.float32)
     cv2.line(spill, (int(eyes[0][0]), int(eyes[0][1])),
