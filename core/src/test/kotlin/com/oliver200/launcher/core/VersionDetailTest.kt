@@ -371,6 +371,22 @@ class VersionDetailTest {
     }
 
     @Test
+    fun `перевод строки в xuid и versionType из сети запрещён`() {
+        // xuid приходит из ответа XSTS, versionType — из version.json; оба
+        // уходят в argv, поэтому NUL и перевод строки в них тоже недопустимы.
+        val d = VersionDetailParser.parse(modern)
+        assertThrows(LaunchPlanException::class.java) {
+            LaunchPlanBuilder.build(d, android, context().copy(xuid = "2535\n--inject"), { null }, "/c.jar")
+        }
+        assertThrows(LaunchPlanException::class.java) {
+            LaunchPlanBuilder.build(d, android, context().copy(versionType = "release\nevil"), { null }, "/c.jar")
+        }
+        assertThrows(LaunchPlanException::class.java) {
+            LaunchPlanBuilder.build(d, android, context().copy(xuid = "2535\u0000x"), { null }, "/c.jar")
+        }
+    }
+
+    @Test
     @DisplayName("describe() не печатает токен доступа")
     fun `отладочный вывод маскирует токен`() {
         val d = VersionDetailParser.parse(modern)

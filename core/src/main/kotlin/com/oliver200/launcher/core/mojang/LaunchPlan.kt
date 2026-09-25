@@ -149,6 +149,13 @@ object LaunchPlanBuilder {
         val jvmArgs = expand(rawJvm, env, values, unresolved)
         val gameArgs = expand(detail.gameArguments, env, values, unresolved)
 
+        // Последний барьер: проверяем УЖЕ СОБРАННЫЙ argv, а не только входные
+        // значения. Так закрывается и подстановка внешних полей (xuid из XSTS,
+        // versionType из version.json), и ЛИТЕРАЛЬНЫЕ строки аргументов из
+        // version.json — их validateValues не видит вовсе.
+        ensureArgvClean(jvmArgs)
+        ensureArgvClean(gameArgs)
+
         return LaunchPlan(
             mainClass = detail.mainClass,
             classpath = classpath.toList(),
@@ -192,7 +199,7 @@ object LaunchPlanBuilder {
      * аргументов (@argfile), которыми пользуются JVM-раннеры на Android.
      */
     private fun validateValues(context: LaunchContext) {
-        val checks = linkedMapOf(
+        val required = linkedMapOf(
             "ник" to context.playerName,
             "UUID" to context.playerUuid,
             "каталог игры" to context.gameDir,
@@ -202,14 +209,44 @@ object LaunchPlanBuilder {
             "имя версии" to context.versionName,
             "индекс ассетов" to context.assetsIndexName,
         )
-        for ((label, value) in checks) {
+        for ((label, value) in required) {
             if (value.isEmpty()) throw LaunchPlanException("Не заполнено: $label")
             if (hasForbiddenChar(value)) {
                 throw LaunchPlanException("Недопустимый символ в поле '$label'")
             }
         }
-        if (hasForbiddenChar(context.accessToken)) {
-            throw LaunchPlanException("Недопустимый символ в токене доступа")
+        // Могут быть пустыми, но управляются извне и всё равно уходят в argv:
+        //   · xuid          — из ответа XSTS (сеть);
+        //   · versionType   — из version.json (манифест);
+        //   · userType/clientId/имя/версия лаунчера — на будущее.
+        // NUL и перевод строки недопустимы в любом из них по той же причине,
+        // что и в нике: они ломают @argfile JVM-раннера.
+        val optional = linkedMapOf(
+            "токен доступа" to context.accessToken,
+            "xuid" to context.xuid,
+            "тип версии" to context.versionType,
+            "тип пользователя" to context.userType,
+            "clientId" to context.clientId,
+            "имя лаунчера" to context.launcherName,
+            "версия лаунчера" to context.launcherVersion,
+        )
+        for ((label, value) in optional) {
+            if (hasForbiddenChar(value)) {
+                throw LaunchPlanException("Недопустимый символ в поле '$label'")
+            }
+        }
+    }
+
+    /**
+     * Проверка итогового argv. Ловит NUL и переводы строки в ЛЮБОМ аргументе —
+     * и в подставленных значениях, и в литералах из version.json. Сообщение
+     * намеренно без самого аргумента: там может лежать токен.
+     */
+    private fun ensureArgvClean(args: List<String>) {
+        for (arg in args) {
+            if (hasForbiddenChar(arg)) {
+                throw LaunchPlanException("Недопустимый символ в аргументе запуска")
+            }
         }
     }
 

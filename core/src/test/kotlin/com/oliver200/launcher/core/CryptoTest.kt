@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 
@@ -126,6 +127,36 @@ class CryptoTest {
     fun `пустой пароль запрещён`() {
         assertThrows(CryptoException::class.java) {
             CryptoEnvelope.sealWithPassphrase(token, CharArray(0), context, SecureRandom(), 100_000)
+        }
+    }
+
+    @Test
+    fun `число итераций вне диапазона отвергается при упаковке`() {
+        // Слишком мало и слишком много — оба недопустимы.
+        assertThrows(IllegalArgumentException::class.java) {
+            CryptoEnvelope.sealWithPassphrase(token, "пароль".toCharArray(), context, SecureRandom(), 50_000)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            CryptoEnvelope.sealWithPassphrase(token, "пароль".toCharArray(), context, SecureRandom(), 20_000_000)
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    fun `огромное число итераций в заголовке не подвешивает открытие`() {
+        // Контейнер валиден, но в заголовке подменяем число итераций на 0x7FFFFFFF.
+        // Без верхней границы deriveKey ушёл бы в многочасовую работу (DoS);
+        // с границей — мгновенный отказ, и тест укладывается в таймаут.
+        val sealed = CryptoEnvelope.sealWithPassphrase(
+            token, "пароль".toCharArray(), context, SecureRandom(), 100_000,
+        )
+        // iterations лежат big-endian в байтах 6..9 (magic 4 + version 1 + kdf 1).
+        sealed[6] = 0x7F.toByte()
+        sealed[7] = 0xFF.toByte()
+        sealed[8] = 0xFF.toByte()
+        sealed[9] = 0xFF.toByte()
+        assertThrows(CryptoException::class.java) {
+            CryptoEnvelope.openWithPassphrase(sealed, "пароль".toCharArray(), context)
         }
     }
 

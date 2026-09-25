@@ -54,6 +54,13 @@ object CryptoEnvelope {
     const val SALT_BYTES = 16
     const val DEFAULT_ITERATIONS = 210_000
 
+    /**
+     * Потолок итераций PBKDF2. Число итераций лежит в заголовке контейнера,
+     * то есть управляется тем, кто этот контейнер подсунул. Без верхней границы
+     * значение вроде 2^31-1 подвесило бы деривацию ключа на минуты (DoS).
+     */
+    const val MAX_ITERATIONS = 10_000_000
+
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val KEY_ALGORITHM = "AES"
     private const val KDF_ALGORITHM = "PBKDF2WithHmacSHA256"
@@ -91,7 +98,7 @@ object CryptoEnvelope {
         random: SecureRandom = SecureRandom(),
         iterations: Int = DEFAULT_ITERATIONS,
     ): ByteArray {
-        require(iterations >= 100_000) { "Слишком мало итераций PBKDF2" }
+        require(iterations in 100_000..MAX_ITERATIONS) { "Недопустимое число итераций PBKDF2" }
         val salt = ByteArray(SALT_BYTES).also(random::nextBytes)
         val key = deriveKey(passphrase, salt, iterations)
         try {
@@ -106,6 +113,7 @@ object CryptoEnvelope {
         val h = parseHeader(sealed)
         if (h.kdf != KDF_PBKDF2) throw CryptoException("Контейнер не запаролен")
         if (h.iterations < 100_000) throw CryptoException("Недопустимо слабые параметры контейнера")
+        if (h.iterations > MAX_ITERATIONS) throw CryptoException("Недопустимо большое число итераций")
         val key = deriveKey(passphrase, h.salt, h.iterations)
         try {
             return openInternal(sealed, h, key, context)
